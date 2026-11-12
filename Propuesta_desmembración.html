@@ -1,0 +1,3292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Linderos y Plano Registral</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+--paper:#f2ede1;
+--paper-dark:#e8e0cd;
+--ink:#1f2e3d;
+--ink-soft:#4a5a6a;
+--line:#b9ab8c;
+--line-dark:#8a7c5f;
+--accent:#8a3324;
+--accent-soft:#c9a04a;
+--ok:#3c6b4a;
+--mono: 'Courier New', Courier, monospace;
+--serif: 'Georgia', 'Times New Roman', serif;
+}
+*{box-sizing:border-box;}
+body{
+margin:0;
+background:var(--paper-dark);
+color:var(--ink);
+font-family:var(--serif);
+padding:28px 16px 60px;
+}
+.sheet{
+max-width:1100px;
+margin:0 auto;
+background:var(--paper);
+border:1px solid var(--line-dark);
+box-shadow:0 2px 0 var(--line-dark), 0 18px 40px rgba(31,46,61,0.18);
+}
+.masthead{
+display:flex;
+justify-content:space-between;
+align-items:flex-end;
+padding:26px 34px 16px;
+border-bottom:3px double var(--ink);
+}
+.masthead h1{
+margin:0;
+font-size:26px;
+letter-spacing:0.02em;
+font-weight:normal;
+}
+.masthead .sub{
+font-family:var(--mono);
+font-size:12px;
+color:var(--ink-soft);
+text-align:right;
+line-height:1.5;
+}
+.stamp-input{
+font-family:var(--mono);
+font-size:11px;
+border:1px solid var(--line-dark);
+padding:4px 8px;
+color:var(--ink-soft);
+background:#fffdf8;
+letter-spacing:0.02em;
+width:240px;
+max-width:100%;
+}
+.stamp-input:focus{
+outline:2px solid var(--accent-soft);
+outline-offset:1px;
+}
+
+section{
+padding:22px 34px;
+border-bottom:1px solid var(--line);
+}
+section:last-child{border-bottom:none;}
+h2{
+font-size:15px;
+text-transform:none;
+margin:0 0 14px;
+color:var(--accent);
+font-weight:normal;
+font-family:var(--serif);
+border-bottom:1px solid var(--line);
+padding-bottom:8px;
+display:flex;
+align-items:baseline;
+gap:10px;
+}
+h2 .n{font-family:var(--mono);font-size:12px;color:var(--line-dark);}
+p.hint{
+font-size:12.5px;
+color:var(--ink-soft);
+margin:-6px 0 16px;
+line-height:1.5;
+}
+
+.grid-meta{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:12px 18px;
+}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:11.5px;color:var(--ink-soft);font-family:var(--mono);}
+.field input, .field select{
+font-family:var(--serif);
+font-size:14px;
+padding:6px 8px;
+border:1px solid var(--line-dark);
+background:#fffdf8;
+color:var(--ink);
+}
+.field input:focus, .field select:focus, .cell input:focus, .cell select:focus{
+outline:2px solid var(--accent-soft);
+outline-offset:1px;
+}
+
+table.entry{
+width:100%;
+border-collapse:collapse;
+font-family:var(--mono);
+font-size:12px;
+}
+table.entry th{
+background:var(--ink);
+color:var(--paper);
+font-weight:normal;
+padding:8px 4px;
+text-align:center;
+font-size:10.5px;
+letter-spacing:0.01em;
+}
+table.entry td{
+border:1px solid var(--line);
+padding:4px 2px;
+text-align:center;
+vertical-align:middle;
+}
+table.entry td.est{
+font-weight:bold;
+background:#ece3cf;
+white-space:nowrap;
+}
+.cell input, .cell select{
+width:100%;
+border:1px solid var(--line);
+padding:5px 3px;
+font-family:var(--mono);
+font-size:12px;
+background:#fffdf8;
+text-align:center;
+}
+.cell input.angle-in{
+width:55px;
+}
+.cell select.dir{min-width:90px;margin:0 auto;}
+td.dist-out{font-family:var(--mono);font-weight:bold;color:var(--accent);}
+td.rm{width:26px;}
+.rm-btn{
+border:none;background:none;color:var(--accent);cursor:pointer;font-size:15px;
+line-height:1;
+}
+
+.toolbar{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+button{
+font-family:var(--serif);
+font-size:13.5px;
+padding:9px 18px;
+border:1px solid var(--ink);
+background:var(--paper);
+color:var(--ink);
+cursor:pointer;
+}
+button:hover{background:var(--ink);color:var(--paper);}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--paper);}
+button.primary:hover{background:#6f271b;}
+button.ghost{border-style:dashed;}
+
+.results{
+display:none;
+grid-template-columns:1.1fr 0.9fr;
+gap:26px;
+}
+.results.show{display:grid;}
+.result-cards{display:flex;flex-direction:column;gap:12px;}
+.card{
+border:1px solid var(--line-dark);
+padding:14px 16px;
+background:#fffdf8;
+}
+.card .label{font-family:var(--mono);font-size:11px;color:var(--ink-soft);}
+.card .value{font-size:22px;margin-top:4px;}
+.card .value small{font-size:13px;color:var(--ink-soft);}
+.card.warn{border-color:var(--accent);}
+.card.warn .value{color:var(--accent);font-size:14px;}
+.card.ok{border-color:var(--ok);}
+
+#plotWrap{border:1px solid var(--line-dark);background:#fffdf8;display:flex;align-items:center;justify-content:center;padding:6px;}
+canvas{max-width:100%;}
+
+.plot-rotator{
+display:flex;
+align-items:center;
+justify-content:center;
+gap:8px;
+margin-top:10px;
+flex-wrap:wrap;
+}
+.plot-rotator button{
+padding:6px 10px;
+font-size:12px;
+font-family:var(--mono);
+}
+.plot-rotator input[type=range]{
+flex:1 1 160px;
+min-width:150px;
+accent-color:var(--accent);
+}
+.plot-rot-value{
+font-family:var(--mono);
+font-size:11px;
+color:var(--ink-soft);
+min-width:38px;
+text-align:right;
+}
+
+table.coords{
+width:100%;
+border-collapse:collapse;
+font-family:var(--mono);
+font-size:11.5px;
+margin-top:14px;
+}
+table.coords th, table.coords td{
+border:1px solid var(--line);
+padding:4px 6px;
+text-align:right;
+}
+table.coords th{background:#ece3cf;text-align:center;}
+table.coords td:first-child, table.coords th:first-child{text-align:center;}
+
+footer{
+padding:16px 34px 26px;
+font-size:11px;
+color:var(--ink-soft);
+font-family:var(--mono);
+display:flex;
+justify-content:space-between;
+}
+
+/* Módulo interactivo de desmembraciones */
+.desmem-module{
+margin-top:18px;
+border:1px solid var(--line-dark);
+background:#fffdf8;
+padding:16px;
+}
+.desmem-question{
+display:flex;
+align-items:center;
+gap:14px;
+flex-wrap:wrap;
+margin-bottom:14px;
+}
+.desmem-question label{
+font-family:var(--mono);
+font-size:12px;
+color:var(--ink-soft);
+}
+.desmem-question select{
+font-family:var(--serif);
+font-size:14px;
+padding:7px 10px;
+border:1px solid var(--line-dark);
+background:#fffdf8;
+color:var(--ink);
+}
+.desmem-work{
+display:none;
+grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);
+gap:18px;
+align-items:start;
+}
+.desmem-work.show{display:grid;}
+.desmem-board{
+border:1px solid var(--line-dark);
+background:#fffdf8;
+padding:6px;
+}
+#desmemCanvas{
+display:block;
+width:100%;
+height:auto;
+cursor:crosshair;
+touch-action:none;
+}
+.desmem-help{
+font-size:12px;
+line-height:1.5;
+color:var(--ink-soft);
+margin:7px 2px 0;
+}
+.desmem-side{
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+.desmem-card{
+border:1px solid var(--line);
+padding:11px 12px;
+background:#fffdf8;
+}
+.desmem-card .label{
+font-family:var(--mono);
+font-size:10.5px;
+color:var(--ink-soft);
+}
+.desmem-card .value{
+margin-top:4px;
+font-size:18px;
+}
+.desmem-points{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:8px;
+}
+.desmem-point{
+border:1px dashed var(--line-dark);
+padding:9px;
+min-height:58px;
+}
+.desmem-point strong{
+display:block;
+font-family:var(--mono);
+font-size:11px;
+color:var(--accent);
+}
+.desmem-point span{
+display:block;
+margin-top:3px;
+font-size:12px;
+}
+.desmem-choice{
+display:none;
+gap:8px;
+flex-wrap:wrap;
+margin-top:8px;
+}
+.desmem-choice.show{display:flex;}
+.desmem-choice button{
+flex:1 1 150px;
+padding:8px 10px;
+font-size:12px;
+}
+.desmem-choice button.selected{
+background:var(--ink);
+color:var(--paper);
+}
+.desmem-status{
+font-family:var(--mono);
+font-size:11px;
+line-height:1.45;
+color:var(--ink-soft);
+}
+.desmem-result{
+display:none;
+border-top:1px solid var(--line);
+padding-top:10px;
+}
+.desmem-result.show{display:block;}
+.desmem-result .main{
+font-size:20px;
+margin-bottom:4px;
+}
+.desmem-result .sub{
+font-family:var(--mono);
+font-size:11px;
+color:var(--ink-soft);
+line-height:1.55;
+}
+.desmem-actions{
+display:flex;
+gap:8px;
+flex-wrap:wrap;
+}
+.desmem-form{
+display:none;
+margin-top:16px;
+border-top:1px solid var(--line);
+padding-top:16px;
+}
+.desmem-form.show{display:block;}
+.desmem-form h3{
+margin:0 0 10px;
+font-family:var(--serif);
+font-size:17px;
+font-weight:normal;
+}
+.desmem-summary{
+display:grid;
+grid-template-columns:repeat(4,minmax(0,1fr));
+gap:8px;
+margin-bottom:14px;
+}
+.desmem-summary .card{padding:10px 12px;}
+.desmem-summary .value{font-size:16px;}
+.desmem-coords{
+max-height:190px;
+overflow:auto;
+margin-top:12px;
+}
+.desmem-coords table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;}
+.desmem-coords th,.desmem-coords td{border-bottom:1px solid var(--line);padding:5px 7px;text-align:left;}
+.desmem-colindantes{
+margin-top:14px;
+border-top:1px solid var(--line);
+padding-top:12px;
+}
+.desmem-colindantes h4{
+margin:0 0 8px;
+font-family:var(--serif);
+font-size:15px;
+font-weight:normal;
+}
+.desmem-colindantes-grid{
+display:grid;
+grid-template-columns:repeat(2,minmax(0,1fr));
+gap:8px;
+}
+.desmem-colindante{
+border:1px solid var(--line);
+padding:8px;
+background:#fffdf8;
+}
+.desmem-colindante .mini-label{
+display:block;
+font-family:var(--mono);
+font-size:9px;
+color:var(--ink-soft);
+margin-bottom:4px;
+}
+.desmem-colindante .mini-value{
+font-size:12px;
+min-height:18px;
+}
+.desmem-vertex-list{max-height:230px;overflow:auto;border:1px solid var(--line);margin-top:8px;}
+.desmem-vertex-edit{display:grid;grid-template-columns:42px 1fr 120px;gap:7px;align-items:center;padding:5px 7px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10px;}
+.desmem-vertex-edit.selected{background:#f3e8e3;}
+.desmem-vertex-edit input,.desmem-col-input{width:100%;box-sizing:border-box;border:1px solid var(--line);padding:5px 6px;font:11px var(--mono);background:#fffdf8;}
+.vertex-edit-id{font-weight:bold;}
+.vertex-edit-coord{color:var(--ink-soft);}
+.desmem-col-save-help{grid-column:1/-1;font-size:10px;color:var(--ink-soft);margin-bottom:2px;}
+.desmem-col-card-actions{display:flex;gap:6px;margin-top:6px;}
+.desmem-col-card-actions button{font-size:10px;padding:5px 8px;}
+.desmem-pdf-status{
+margin-top:8px;
+font-family:var(--mono);
+font-size:10px;
+color:var(--ink-soft);
+}
+.desmem-interactive-tools{
+margin-top:10px;
+display:flex;
+flex-wrap:wrap;
+gap:6px;
+align-items:center;
+}
+.desmem-interactive-tools button{
+padding:7px 10px;
+font-family:var(--mono);
+font-size:10px;
+}
+.desmem-interactive-tools button.active{
+outline:2px solid var(--accent);
+background:var(--ink);
+color:#fffdf8;
+}
+.desmem-interactive-panel{
+margin-top:8px;
+padding:9px 10px;
+border:1px solid var(--line);
+background:#fffdf8;
+font-family:var(--mono);
+font-size:10px;
+}
+.desmem-interactive-panel input{
+width:100%;
+margin-top:5px;
+}
+.desmem-interactive-actions{
+display:flex;
+flex-wrap:wrap;
+gap:5px;
+margin-top:7px;
+}
+.desmem-interactive-actions button{padding:5px 8px;font-size:10px;}
+.desmem-colindante.selected{
+outline:2px solid var(--accent);
+background:#f7eee9;
+}
+.desmem-coord-row.selected{
+outline:2px solid var(--accent);
+background:#f7eee9;
+}
+
+@media (max-width:760px){
+.desmem-summary{grid-template-columns:1fr 1fr;}
+}
+@media (max-width:760px){
+.desmem-work{grid-template-columns:1fr;}
+.desmem-points{grid-template-columns:1fr 1fr;}
+}
+
+@media (max-width:760px){
+.grid-meta{grid-template-columns:1fr 1fr;}
+.results{grid-template-columns:1fr;}
+.masthead{flex-direction:column;align-items:flex-start;gap:10px;}
+.masthead .sub{text-align:left;}
+}
+
+#plotCanvas, #desmemCanvas{cursor:grab;}
+#plotCanvas:active, #desmemCanvas:active{cursor:grabbing;}
+.desmem-col-angle{display:block;margin:5px 0;font-size:11px}.desmem-col-angle input{width:80px}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<div class="masthead">
+<div>
+<h1>Calculadora de Linderos & Plano Registral</h1>
+<input id="m_titulo_doc" class="stamp-input" style="margin-top:8px;" value="PLANO DE MEDIDAS">
+</div>
+<div class="sub">
+Vara guatemalteca = 0.835905 m<br>
+1 vara = 36 pulgadas<br>
+Cuerda lineal (25 varas) ≈ 20.8976 m
+</div>
+</div>
+
+<section>
+<h2><span class="n">01</span> Datos generales del plano</h2>
+<p class="hint">Estos datos se usan para llenar el encabezado y el pie del plano en el PDF, igual que en un plano registral (ubicación, otorgante, adquirente, etc.).</p>
+<div class="grid-meta">
+<div class="field"><label>Tipo de plano</label><input id="m_tipo" value="DE DESMEMBRACION"></div>
+<div class="field" style="grid-column:span 2;"><label>No.</label><input id="m_no" placeholder="ej. 6789"></div>
+<div class="field" style="grid-column:span 3;"><label>De (departamento / municipio)</label><input id="m_de" placeholder="ej. Guatemala"></div>
+<div class="field" style="grid-column:span 3;"><label>Ubicación</label><input id="m_ubicacion" placeholder="dirección / lugar"></div>
+<div class="field" style="grid-column:span 2;"><label>Otorgante</label><input id="m_otorgante" placeholder="nombre del otorgante"></div>
+<div class="field"><label>Fecha</label><input id="m_fecha" type="date"></div>
+<div class="field" style="grid-column:span 2;"><label>Adquirente</label><input id="m_adquirente" placeholder="nombre del adquirente"></div>
+<div class="field"><label>Nos. (plano / archivo)</label><input id="m_nos" placeholder="ej. 1185-1"></div>
+</div>
+<p class="hint" style="margin-top:16px;">Colindancias: nombre de quien colinda en cada lado del polígono. El número de campos se ajusta automáticamente a la cantidad de lados agregados en la sección 02, y cada nombre se imprime junto a su lindero correspondiente en el dibujo.</p>
+<div class="grid-meta" id="colindantesGrid"></div>
+</section>
+
+<section>
+<h2><span class="n">02</span> Poligonal y Medidas de Linderos</h2>
+
+<div class="field" style="max-width:380px; margin-bottom:16px;">
+<label><strong>¿Ingresar Azimuts en Grados, Minutos y Segundos?</strong></label>
+<select id="angleMode" onchange="toggleAngleColumns()">
+<option value="no">No (Solo distancias y direcciones cardinales)</option>
+<option value="si">Sí (Ingresar Azimut en ° ' ")</option>
+</select>
+</div>
+
+<p class="hint">Cada renglón representa un lado de la propiedad. Se pueden ingresar direcciones seguidas iguales (ej. tramos E-0 a E-1 y E-1 a E-2 en la misma dirección).</p>
+
+<div style="overflow-x:auto;">
+<table class="entry" id="entryTable">
+<thead>
+<tr>
+<th>Est.</th><th>P.O.</th><th class="col-dir">Orientación</th>
+<th class="col-angle">Azimut Grados (°)</th>
+<th class="col-angle">Min (')</th>
+<th class="col-angle">Seg (")</th>
+<th>Varas</th><th>Pulg.</th><th>Cm</th><th>m</th><th>Cuerdas</th>
+<th>Dist. (m)</th><th></th>
+</tr>
+</thead>
+<tbody id="entryBody"></tbody>
+</table>
+</div>
+<div class="toolbar">
+<button class="ghost" onclick="addRow()">+ Agregar lado</button>
+<button class="primary" onclick="calcular()">Calcular área y coordenadas</button>
+<button onclick="generarPDF()">Descargar plano en PDF</button>
+<button class="ghost" onclick="reiniciar()">Reiniciar</button>
+</div>
+</section>
+
+<section>
+<h2><span class="n">03</span> Resultados</h2>
+<div class="results" id="results">
+<div class="result-cards">
+<div class="card ok">
+<div class="label">ÁREA</div>
+<div class="value" id="out_area_m2">— m²</div>
+<div class="value" id="out_area_vr" style="font-size:15px;color:var(--ink-soft);">— varas²</div>
+<div class="value" id="out_area_cu" style="font-size:15px;color:var(--ink-soft);">— cuerdas</div>
+</div>
+<div class="card">
+<div class="label">PERÍMETRO</div>
+<div class="value" id="out_perim">— <small>m</small></div>
+</div>
+<div class="card" id="closeCard">
+<div class="label">ERROR DE CIERRE (poligonal)</div>
+<div class="value" id="out_close" style="font-size:15px;">—</div>
+</div>
+<div class="card">
+<div class="label">ESCALA DE TRABAJO</div>
+<div class="value" id="out_scale">—</div>
+</div>
+<table class="coords" id="coordsTable"></table>
+</div>
+<div>
+<div id="plotWrap"><canvas id="plotCanvas" width="480" height="480"></canvas></div>
+<div class="plot-rotator">
+<button type="button" class="ghost" onclick="rotatePlotBy(-90)" title="Girar 90° a la izquierda">⟲ 90°</button>
+<button type="button" class="ghost" onclick="rotatePlotBy(-15)">−15°</button>
+<input id="plotRotSlider" type="range" min="0" max="359" step="1" value="0" oninput="setPlotRotation(this.value)" aria-label="Giro del plano">
+<button type="button" class="ghost" onclick="rotatePlotBy(15)">+15°</button>
+<button type="button" class="ghost" onclick="rotatePlotBy(90)" title="Girar 90° a la derecha">⟳ 90°</button>
+<button type="button" class="ghost" onclick="setPlotRotation(0)" title="Volver al norte hacia arriba">Norte arriba</button>
+<span class="plot-rot-value" id="plotRotValue">0°</span>
+</div>
+<p class="hint" id="scaleCaption" style="text-align:center;margin:8px 0 0;">Podés arrastrar directamente los nombres de los colindantes sobre la figura para acomodarlos. Hacé doble clic sobre un nombre para girarlo e indicar los grados (también con clic derecho). La posición y el giro se conservan al generar el PDF.</p>
+</div>
+</div>
+</section>
+
+<section id="desmemSection">
+<h2><span class="n">04</span> Desmembraciones</h2>
+<p class="hint">
+Esta sección usa como base el polígono calculado en la sección 02. Seleccioná “Sí” para activar
+el modo gráfico y elegí dos o tres puntos para definir la desmembración: A y B sobre el perímetro y, opcionalmente, C dentro del polígono.
+</p>
+
+<div class="desmem-module">
+<div class="desmem-question">
+<label for="desmemDecision">¿Desea realizar una desmembración sobre el polígono calculado?</label>
+<select id="desmemDecision">
+<option value="">Seleccione una opción</option>
+<option value="no">No</option>
+<option value="si">Sí</option>
+</select>
+</div>
+
+<div class="desmem-work" id="desmemWork">
+<div>
+<div class="desmem-board">
+<canvas id="desmemCanvas" width="720" height="520" aria-label="Polígono interactivo para seleccionar los puntos de la desmembración"></canvas>
+</div>
+<p class="desmem-help">
+<strong>Cómo usarlo:</strong> marcá <strong>A y B sobre el perímetro</strong>. El <strong>punto C es opcional</strong>: si lo agregás, debe quedar dentro del polígono. Después podés <strong>arrastrar los puntos</strong> para ajustar la porción.
+El punto C no necesita tocar ningún lindero. Si preferís, podés ingresar manualmente el área que querés desmembrar; en ese caso el área ingresada será la que se utilizará para el cálculo y el PDF.
+</p>
+<div class="desmem-interactive-tools" aria-label="Herramientas interactivas">
+<button type="button" id="desmemModeRoute" class="active">↗ Recorrido</button>
+<button type="button" id="desmemModeVertex">● Vértices</button>
+<button type="button" id="desmemModeCol">▱ Colindantes</button>
+</div>
+<div class="desmem-interactive-panel" id="desmemInteractivePanel">
+<strong>Modo recorrido:</strong> seleccioná A, B y C como hasta ahora.
+</div>
+</div>
+
+<div class="desmem-side">
+<div class="desmem-points">
+<div class="desmem-point">
+<strong>PUNTO INICIAL</strong>
+<span id="desmemStart">Sin seleccionar</span>
+</div>
+<div class="desmem-point">
+<strong>PUNTO FINAL</strong>
+<span id="desmemEnd">Sin seleccionar</span>
+</div>
+<div class="desmem-point">
+<strong>PUNTO INTERIOR (OPCIONAL)</strong>
+<span id="desmemThird">Sin seleccionar</span>
+</div>
+</div>
+
+<div class="desmem-card">
+<div class="label">ESTADO</div>
+<div class="desmem-status" id="desmemStatus" aria-live="polite">
+Primero calculá el polígono y luego seleccioná A y B. El punto C es opcional.
+</div>
+</div>
+
+<div class="desmem-card">
+<div class="label">MODO DE DEFINICIÓN</div>
+<select id="desmemMode" style="margin-top:6px;width:100%;">
+<option value="grafico">Definir por recorrido gráfico</option>
+<option value="area">Ingresar área a desmembrar</option>
+</select>
+<div id="desmemManualAreaWrap" style="display:none;margin-top:9px;">
+<label style="font-size:11px;display:block;margin-bottom:4px;">Área a desmembrar (m²)</label>
+<input id="desmemManualArea" type="number" min="0" step="0.0001" placeholder="Ej. 250.0000" style="width:100%;">
+<p class="hint" style="margin:5px 0 0;">Al ingresar un área, el punto B se ajusta automáticamente sobre el perímetro para que la porción tenga esa área. A y C (si existe) se mantienen fijos.</p>
+</div>
+</div>
+
+<div class="desmem-choice" id="desmemChoice">
+<button type="button" id="desmemPathA">Recorrido 1</button>
+<button type="button" id="desmemPathB">Recorrido 2</button>
+</div>
+
+<div class="desmem-result" id="desmemResult">
+<div class="label">ÁREA DESMEMBRADA</div>
+<div class="main" id="desmemAreaM2">— m²</div>
+<div class="sub" id="desmemAreaOther">—</div>
+<div class="sub" id="desmemCutLine">Línea de desmembración: —</div>
+<div class="sub" id="desmemRemaining">Área restante: —</div>
+</div>
+
+<div class="desmem-actions">
+<button type="button" class="ghost" id="desmemReset">Nueva selección</button>
+<button type="button" class="primary" id="desmemApply">Aplicar selección</button>
+</div>
+
+<div class="desmem-form" id="desmemForm">
+<h3>Datos del Plano de Desmembración</h3>
+<p class="hint">Estos datos se utilizan únicamente para el PDF de la desmembración.</p>
+<div class="grid-meta">
+<div class="field"><label>Tipo de plano</label><input id="d_tipo" value="PLANO DE DESMEMBRACION"></div>
+<div class="field" style="grid-column:span 2;"><label>No.</label><input id="d_no" placeholder="ej. 6789-1"></div>
+<div class="field" style="grid-column:span 3;"><label>De (departamento / municipio)</label><input id="d_de" placeholder="ej. Guatemala"></div>
+<div class="field" style="grid-column:span 3;"><label>Ubicación</label><input id="d_ubicacion" placeholder="dirección / lugar"></div>
+<div class="field" style="grid-column:span 2;"><label>Otorgante / propietario</label><input id="d_otorgante" placeholder="nombre del propietario"></div>
+<div class="field"><label>Fecha</label><input id="d_fecha" type="date"></div>
+<div class="field" style="grid-column:span 2;"><label>Adquirente</label><input id="d_adquirente" placeholder="nombre del adquirente"></div>
+<div class="field"><label>Nos. (plano / archivo)</label><input id="d_nos" placeholder="ej. 1185-2"></div>
+<div class="field" style="grid-column:span 2;"><label>Área desmembrada</label><input id="d_area" readonly></div>
+<div class="field" style="grid-column:span 2;"><label>Área restante</label><input id="d_area_restante" readonly></div>
+</div>
+<div class="desmem-summary">
+<div class="card ok"><div class="label">ÁREA DESMEMBRADA</div><div class="value" id="d_sum_m2">—</div></div>
+<div class="card"><div class="label">VARAS²</div><div class="value" id="d_sum_vr">—</div></div>
+<div class="card"><div class="label">CUERDAS</div><div class="value" id="d_sum_cu">—</div></div>
+<div class="card"><div class="label">LÍNEA DE CORTE</div><div class="value" id="d_sum_linea">—</div></div>
+</div>
+<div class="desmem-colindantes">
+<h4>Colindantes de la porción desmembrada</h4>
+<p class="hint" style="margin:0 0 9px;">
+Se muestran automáticamente según los lados del polígono original que forman el recorrido seleccionado.
+Los tramos parciales conservan el colindante del lindero correspondiente; los segmentos A–C y C–B son líneas de corte internas.
+</p>
+<div class="desmem-colindantes-grid" id="desmemColindantes"></div>
+</div>
+
+<div class="desmem-coords" id="desmemCoords"></div>
+<div class="desmem-actions" style="margin-top:12px;">
+<button type="button" onclick="generarPDFDesmembracion()">Generar plano del área desmembrada</button>
+<button type="button" class="ghost" onclick="generarPDFAreaRestante()">Generar plano del área restante</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<footer>
+<span>Herramienta de cálculo topográfico — uso de referencia, no sustituye la certificación de un topógrafo colegiado.</span>
+<span id="clock"></span>
+</footer>
+</div>
+
+<script>
+const VARA_M = 0.835905;
+const PULGADA_M = VARA_M / 36;
+const CUERDA_M2 = 436;
+const CUERDA_LINEAR_M = 25 * VARA_M;
+let rowCount = 0;
+let lastCalc = null;
+
+const PAGE_W_MM = 8.5*25.4;
+const PAGE_H_MM = 13*25.4;
+const PAGE_MARGIN_MM = 12;
+const INNER_W_MM = PAGE_W_MM - 2*PAGE_MARGIN_MM;
+const DRAW_H_MM = 112 * (PAGE_H_MM/297);
+const DRAW_MARGIN_MM = 24;
+
+const STANDARD_SCALES = [50,75,100,125,150,200,250,300,400,500,600,750,1000,1250,1500,2000,2500,3000,4000,5000,7500,10000];
+
+function pickNiceScale(spanXm, spanYm){
+const availW = INNER_W_MM - 2*DRAW_MARGIN_MM;
+const availH = DRAW_H_MM - 2*DRAW_MARGIN_MM;
+const neededW = (spanXm*1000)/availW;
+const neededH = (spanYm*1000)/availH;
+const needed = Math.max(neededW, neededH, 1);
+for(const s of STANDARD_SCALES){ if(s >= needed) return s; }
+return Math.ceil(needed/500)*500;
+}
+
+function syncColindantes(){
+const rows = document.querySelectorAll('#entryBody tr');
+const grid = document.getElementById('colindantesGrid');
+if(!grid) return;
+const n = rows.length;
+// conserva lo ya escrito, por posición, antes de reconstruir los campos
+const existing = Array.from(grid.querySelectorAll('.colindante-in')).map(inp=>inp.value);
+grid.innerHTML = '';
+for(let i=0;i<n;i++){
+const next = (i+1<n) ? i+1 : 0;
+const div = document.createElement('div');
+div.className = 'field';
+div.innerHTML = `<label>Colindante lado E-${i} → E-${next}</label><input type="text" class="colindante-in" data-idx="${i}" placeholder="ej. Juan Pérez / calle">`;
+grid.appendChild(div);
+if(existing[i] !== undefined) div.querySelector('input').value = existing[i];
+}
+}
+
+function getColindantes(){
+return Array.from(document.querySelectorAll('#colindantesGrid .colindante-in'))
+.map(inp => (inp.value || '').trim());
+}
+
+function toggleAngleColumns() {
+const mode = document.getElementById('angleMode').value;
+const angleEls = document.querySelectorAll('.col-angle');
+const dirEls = document.querySelectorAll('.col-dir');
+
+angleEls.forEach(el => {
+el.style.display = (mode === 'si') ? '' : 'none';
+});
+dirEls.forEach(el => {
+el.style.display = (mode === 'no') ? '' : 'none';
+});
+}
+
+function addRow(){
+const tbody = document.getElementById('entryBody');
+const idx = rowCount;
+const tr = document.createElement('tr');
+tr.dataset.idx = idx;
+tr.innerHTML = `
+<td class="est">E-${idx}</td>
+<td class="est po-label">E-${idx+1}</td>
+<td class="cell col-dir">
+<select class="dir">
+<option value="N">Norte</option>
+<option value="S">Sur</option>
+<option value="E">Este</option>
+<option value="O">Oeste</option>
+</select>
+</td>
+<td class="cell col-angle"><input type="number" class="deg-in angle-in" min="0" max="360" placeholder="0"></td>
+<td class="cell col-angle"><input type="number" class="min-in angle-in" min="0" max="59" placeholder="0"></td>
+<td class="cell col-angle"><input type="number" class="sec-in angle-in" min="0" max="59.99" step="any" placeholder="0"></td>
+<td class="cell"><input type="number" step="any" class="varas" min="0" placeholder="0"></td>
+<td class="cell"><input type="number" step="any" class="pulgadas" min="0" max="35.999" placeholder="0"></td>
+<td class="cell"><input type="number" step="any" class="cms" min="0" max="99.999" placeholder="0"></td>
+<td class="cell"><input type="number" step="any" class="metros" min="0" placeholder="0"></td>
+<td class="cell"><input type="number" step="any" class="cuerdas" min="0" placeholder="0"></td>
+<td class="dist-out">—</td>
+<td class="rm"><button class="rm-btn" onclick="removeRow(this)" title="quitar lado">×</button></td>
+`;
+tbody.appendChild(tr);
+rowCount++;
+relabel();
+toggleAngleColumns();
+}
+
+function removeRow(btn){
+const tr = btn.closest('tr');
+tr.remove();
+relabel();
+}
+
+function relabel(){
+const rows = document.querySelectorAll('#entryBody tr');
+rowCount = rows.length;
+rows.forEach((tr,i)=>{
+tr.dataset.idx = i;
+tr.querySelector('.est').textContent = `E-${i}`;
+const next = (i+1 < rows.length) ? `E-${i+1}` : 'E-0';
+tr.querySelector('.po-label').textContent = next;
+});
+syncColindantes();
+document.getElementById('results').classList.remove('show');
+}
+
+function reiniciar(){
+document.getElementById('entryBody').innerHTML = '';
+rowCount = 0;
+lastCalc = null;
+document.getElementById('results').classList.remove('show');
+setPlotRotation(0);
+for(let i=0;i<4;i++) addRow();
+}
+
+const DIR_LABEL = {N:'Norte', S:'Sur', E:'Este', O:'Oeste'};
+
+function calcular(){
+const rows = document.querySelectorAll('#entryBody tr');
+if(rows.length < 3){
+alert('Ingresá al menos 3 lados para formar un polígono.');
+return null;
+}
+
+const isAngleActive = document.getElementById('angleMode').value === 'si';
+const colindantesArr = getColindantes();
+const legs = [];
+let ok = true;
+
+rows.forEach((tr, idx)=>{
+const varas = parseFloat(tr.querySelector('.varas').value) || 0;
+const pulg = parseFloat(tr.querySelector('.pulgadas').value) || 0;
+const cms = parseFloat(tr.querySelector('.cms').value) || 0;
+const mts = parseFloat(tr.querySelector('.metros').value) || 0;
+const cds = parseFloat(tr.querySelector('.cuerdas').value) || 0;
+
+const distM = varas*VARA_M + pulg*PULGADA_M + cms/100 + mts + cds*CUERDA_LINEAR_M;
+if(distM <= 0) ok = false;
+
+let angleDeg = 0;
+let rumboTxt = '';
+let dirCard = 'N';
+
+if (isAngleActive) {
+const deg = parseFloat(tr.querySelector('.deg-in').value) || 0;
+const min = parseFloat(tr.querySelector('.min-in').value) || 0;
+const sec = parseFloat(tr.querySelector('.sec-in').value) || 0;
+
+angleDeg = (deg + (min/60) + (sec/3600)) % 360;
+rumboTxt = `Az ${deg}°${min}'${sec.toFixed(0)}"`;
+
+// Determinar cuadrante aproximado para asignar colindantes
+if (angleDeg >= 315 || angleDeg < 45) dirCard = 'N';
+else if (angleDeg >= 45 && angleDeg < 135) dirCard = 'E';
+else if (angleDeg >= 135 && angleDeg < 225) dirCard = 'S';
+else dirCard = 'O';
+
+} else {
+const dir = tr.querySelector('.dir').value;
+dirCard = dir;
+const cardMap = { N: 0, E: 90, S: 180, O: 270 };
+angleDeg = cardMap[dir] !== undefined ? cardMap[dir] : 0;
+rumboTxt = DIR_LABEL[dir] || dir;
+}
+
+tr.querySelector('.dist-out').textContent = distM.toFixed(3);
+legs.push({
+dir: dirCard,
+varas, pulg, cms, mts, cds, distM,
+angleDeg,
+rumbo: rumboTxt,
+colindante: colindantesArr[idx] || ''
+});
+});
+
+if(!ok){
+alert('Cada lado necesita una distancia mayor que cero.');
+return null;
+}
+
+// Trazo de coordenadas trigonométricas
+const coords = [{x:0,y:0}];
+legs.forEach(leg=>{
+const prev = coords[coords.length-1];
+const rad = (leg.angleDeg * Math.PI) / 180;
+const dx = leg.distM * Math.sin(rad);
+const dy = leg.distM * Math.cos(rad);
+coords.push({x: prev.x + dx, y: prev.y + dy});
+});
+
+const closeErr = Math.hypot(coords[coords.length-1].x, coords[coords.length-1].y);
+const perim = legs.reduce((s,l)=>s+l.distM,0);
+
+// Área por Algoritmo de Gauss (Shoelace)
+const pts = coords.slice(0, coords.length-1);
+let area2 = 0;
+for(let i=0;i<pts.length;i++){
+const a = pts[i], b = pts[(i+1)%pts.length];
+area2 += (a.x*b.y - b.x*a.y);
+}
+const areaM2 = Math.abs(area2)/2;
+const areaVr = areaM2 / (VARA_M*VARA_M);
+const areaCu = areaM2 / CUERDA_M2;
+
+const xs2 = pts.map(p=>p.x), ys2 = pts.map(p=>p.y);
+const spanXm = (Math.max(...xs2)-Math.min(...xs2)) || 1;
+const spanYm = (Math.max(...ys2)-Math.min(...ys2)) || 1;
+const scale = pickNiceScale(spanXm, spanYm);
+
+lastCalc = {legs, coords: pts, areaM2, areaVr, areaCu, perim, closeErr, scale, colindantes: colindantesArr, colLabelOffsets: lastCalc?.colLabelOffsets || {}, colLabelAngles: lastCalc?.colLabelAngles || {}, plotRotation: lastCalc?.plotRotation || 0};
+
+document.getElementById('out_area_m2').textContent = areaM2.toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4}) + ' m²';
+document.getElementById('out_area_vr').textContent = areaVr.toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4}) + ' varas²';
+document.getElementById('out_area_cu').textContent = areaCu.toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4}) + ' cuerdas (1 cuerda = 436 m²)';
+document.getElementById('out_perim').textContent = perim.toLocaleString('es-GT',{minimumFractionDigits:3,maximumFractionDigits:3}) + ' m';
+document.getElementById('out_scale').textContent = '1 : ' + scale;
+document.getElementById('scaleCaption').textContent = `Escala 1:${scale} — calculada para hoja de 8.5" × 13". Girá el plano con los botones o el control deslizante; la brújula siempre marca el norte real.`;
+
+const closeCard = document.getElementById('closeCard');
+const closeOut = document.getElementById('out_close');
+if(closeErr < 0.05){
+closeCard.className = 'card ok';
+closeOut.textContent = closeErr.toFixed(4) + ' m (poligonal cerrada correctamente)';
+} else {
+closeCard.className = 'card warn';
+closeOut.textContent = closeErr.toFixed(4) + ' m de diferencia entre E-' + pts.length + ' y E-0.';
+}
+
+// Coordenadas
+let html = '<tr><th>Est.</th><th>X (m)</th><th>Y (m)</th></tr>';
+pts.forEach((p,i)=>{
+html += `<tr><td>E-${i}</td><td>${p.x.toFixed(3)}</td><td>${p.y.toFixed(3)}</td></tr>`;
+});
+document.getElementById('coordsTable').innerHTML = html;
+
+drawPlot(pts, {legs, scale, rotation: lastCalc.plotRotation});
+document.getElementById('results').classList.add('show');
+refreshDesmemAfterCalculation();
+return lastCalc;
+}
+
+/* ===== Giro del plano de la sección 03 =====
+La brújula (rosa de los vientos) se dibuja SIEMPRE fija y apuntando al norte
+real. Lo que se gira es el polígono: los vértices, lados y etiquetas de
+colindantes rotan alrededor del centroide del terreno, y la rotación se
+conserva al generar el PDF. */
+function setPlotRotation(deg){
+const d = (((Number(deg)||0)%360)+360)%360;
+if(lastCalc){
+lastCalc.plotRotation = d;
+drawPlot(lastCalc.coords, {legs:lastCalc.legs, scale:lastCalc.scale, rotation:d});
+}
+const slider = document.getElementById('plotRotSlider');
+const value = document.getElementById('plotRotValue');
+if(slider) slider.value = Math.round(d);
+if(value) value.textContent = Math.round(d) + '°';
+}
+
+function rotatePlotBy(delta){
+const base = (lastCalc && lastCalc.plotRotation) || 0;
+setPlotRotation(base + (Number(delta)||0));
+}
+
+function rotatePoints(pts, rotDeg){
+if(!rotDeg) return pts;
+let cx=0, cy=0;
+pts.forEach(p=>{cx+=p.x; cy+=p.y;});
+cx/=pts.length; cy/=pts.length;
+const r = rotDeg*Math.PI/180;
+const cos = Math.cos(r), sin = Math.sin(r);
+return pts.map(p=>({
+x: cx + (p.x-cx)*cos - (p.y-cy)*sin,
+y: cy + (p.x-cx)*sin + (p.y-cy)*cos
+}));
+}
+
+function drawPlot(pts, opts, canvasEl){
+opts = opts || {};
+const legs = opts.legs, scale = opts.scale;
+const rotDeg = Number(opts.rotation) || 0;
+const canvas = canvasEl || document.getElementById('plotCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+ctx.clearRect(0,0,W,H);
+ctx.fillStyle = '#fffdf8';
+ctx.fillRect(0,0,W,H);
+
+// El polígono se dibuja girado; la brújula y el texto de escala no.
+const P = rotatePoints(pts, rotDeg);
+
+const pad = Math.min(W,H) * 0.19;
+const xs = P.map(p=>p.x), ys = P.map(p=>p.y);
+const minX = Math.min(...xs), maxX = Math.max(...xs);
+const minY = Math.min(...ys), maxY = Math.max(...ys);
+const spanX = (maxX-minX)||1, spanY = (maxY-minY)||1;
+
+const availW = W - 2*pad;
+const availH = H - 2*pad;
+const drawScale = Math.min(availW/spanX, availH/spanY);
+const drawnW = spanX*drawScale, drawnH = spanY*drawScale;
+const offX = pad + (availW-drawnW)/2;
+const offY = pad + (availH-drawnH)/2;
+
+function toScreen(p){
+const sx = offX + (p.x - minX)*drawScale;
+const sy = H - offY - (p.y - minY)*drawScale;
+return {x:sx, y:sy};
+}
+
+ctx.strokeStyle = '#8a3324';
+ctx.fillStyle = 'rgba(138,51,36,0.08)';
+ctx.lineWidth = 1.6;
+ctx.beginPath();
+P.forEach((p,i)=>{
+const s = toScreen(p);
+if(i===0) ctx.moveTo(s.x,s.y); else ctx.lineTo(s.x,s.y);
+});
+ctx.closePath();
+ctx.fill();
+ctx.stroke();
+
+ctx.fillStyle = '#1f2e3d';
+ctx.font = `${Math.max(10,Math.round(Math.min(W,H)*0.024))}px Courier New`;
+P.forEach((p,i)=>{
+const s = toScreen(p);
+ctx.fillStyle = '#1f2e3d';
+ctx.fillText(`E-${i}`, s.x+6, s.y-6);
+});
+
+if(legs && legs.length){
+// prueba punto-en-polígono (ray casting) usada para saber, en cada lado,
+// cuál de los dos sentidos perpendiculares es realmente "hacia afuera".
+// Esto es indispensable en polígonos cóncavos (con entrantes, forma de
+// "L", etc.): alejarse solo del centroide falla justo en esos casos y
+// hace que las etiquetas de lados distintos terminen una sobre otra.
+function isInside(pt, poly){
+let inside = false;
+for(let i=0, j=poly.length-1; i<poly.length; j=i++){
+const xi=poly[i].x, yi=poly[i].y, xj=poly[j].x, yj=poly[j].y;
+const intersect = ((yi>pt.y) !== (yj>pt.y)) &&
+(pt.x < (xj-xi)*(pt.y-yi)/(yj-yi)+xi);
+if(intersect) inside = !inside;
+}
+return inside;
+}
+
+const screenPts = P.map(toScreen);
+
+const fontSize = Math.max(9, Math.round(Math.min(W,H)*0.021));
+ctx.fillStyle = '#4a5a6a';
+ctx.font = `${fontSize}px Georgia`;
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+
+const labels = [];
+const colOffsets = (lastCalc && lastCalc.colLabelOffsets) || {};
+// La rotación del plano también gira los offsets guardados, para que
+// las etiquetas arrastradas sigan pegadas a su lindero al girar.
+const rotRad = rotDeg*Math.PI/180;
+const rotCos = Math.cos(rotRad), rotSin = Math.sin(rotRad);
+
+legs.forEach((leg,i)=>{
+const name = (leg.colindante || '').trim();
+if(!name) return;
+const p1 = screenPts[i], p2 = screenPts[(i+1)%screenPts.length];
+const midx = (p1.x+p2.x)/2, midy = (p1.y+p2.y)/2;
+const segKey = routeSegmentKey(pts[i], pts[(i+1)%pts.length]);
+const savedOffset = colOffsets[segKey] || {dx:0,dy:0};
+
+// vector del lado (rumbo real de ese tramo, no de la orientación cardinal)
+let edx = p2.x-p1.x, edy = p2.y-p1.y;
+const edgeLen = Math.hypot(edx,edy) || 1;
+edx/=edgeLen; edy/=edgeLen;
+
+// perpendicular al lado; se decide cuál sentido es "afuera" probando
+// un punto pequeño a cada lado contra el polígono real (no el centroide)
+let perpx = -edy, perpy = edx;
+const probe = {x: midx + perpx*4, y: midy + perpy*4};
+if(isInside(probe, screenPts)){ perpx = -perpx; perpy = -perpy; }
+
+// separación del nombre respecto a la línea del lindero: un espacio en
+// blanco fijo (relativo al tamaño de letra), igual para cualquier
+// orientación, para que no quede pegado pero tampoco quede flotando lejos
+const gap = fontSize*1.9;
+const halfThickness = fontSize*0.55;
+const offset = halfThickness + gap;
+const baseLx = midx + perpx*offset, baseLy = midy + perpy*offset;
+// el offset guardado se gira junto con el plano
+const rdx = (savedOffset.dx||0)*rotCos - (savedOffset.dy||0)*rotSin;
+const rdy = (savedOffset.dx||0)*rotSin + (savedOffset.dy||0)*rotCos;
+const lx = baseLx + rdx*drawScale;
+const ly = baseLy - rdy*drawScale;
+
+// ángulo del propio lado, normalizado para que el texto nunca quede
+// "de cabeza": horizontal -> 0°, vertical -> 90°, diagonal -> su propio ángulo
+let angle = Math.atan2(edy, edx);
+if(angle > Math.PI/2) angle -= Math.PI;
+if(angle <= -Math.PI/2) angle += Math.PI;
+const degAbs = Math.abs(angle*180/Math.PI);
+if(degAbs < 3) angle = 0;
+else if(Math.abs(degAbs-90) < 3) angle = Math.sign(angle)*Math.PI/2;
+// Giro manual guardado para este lindero.
+const savedAngleDeg = Number(((lastCalc && lastCalc.colLabelAngles) || {})[segKey]);
+if(Number.isFinite(savedAngleDeg)) angle += savedAngleDeg*Math.PI/180;
+
+const label = name.toUpperCase();
+const textW = ctx.measureText(label).width;
+const isVert = Math.abs(angle) > Math.PI/4;
+// caja aproximada de la etiqueta (sin rotar) usada solo para separar
+// etiquetas que quedan cerca entre sí, p.ej. en entrantes muy juntos
+const halfW = (isVert ? fontSize*0.65 : textW/2) + 2;
+const halfH = (isVert ? textW/2 : fontSize*0.65) + 2;
+
+labels.push({lx, ly, baseLx, baseLy, angle, label, halfW, halfH, key:segKey, drawScale, manual:Object.prototype.hasOwnProperty.call(colOffsets,segKey)});
+});
+
+// separa etiquetas que se solapan, empujándolas a lo largo del eje de
+// menor superposición; varias pasadas por si el ajuste de una afecta a otra
+for(let iter=0; iter<40; iter++){
+let moved = false;
+for(let a=0; a<labels.length; a++){
+for(let b=a+1; b<labels.length; b++){
+const A = labels[a], B = labels[b];
+if(A.manual || B.manual) continue;
+const dx = B.lx-A.lx, dy = B.ly-A.ly;
+const overlapX = (A.halfW+B.halfW) - Math.abs(dx);
+const overlapY = (A.halfH+B.halfH) - Math.abs(dy);
+if(overlapX > 0 && overlapY > 0){
+moved = true;
+if(overlapX < overlapY){
+const push = overlapX/2 + 1;
+const dir = dx===0 ? 1 : Math.sign(dx);
+A.lx -= dir*push; B.lx += dir*push;
+} else {
+const push = overlapY/2 + 1;
+const dir = dy===0 ? 1 : Math.sign(dy);
+A.ly -= dir*push; B.ly += dir*push;
+}
+}
+}
+}
+if(!moved) break;
+}
+
+labels.forEach(d=>{
+ctx.save();
+ctx.translate(d.lx, d.ly);
+ctx.rotate(d.angle);
+// halo claro detrás del texto para que se lea bien sobre el relleno o las líneas
+ctx.lineWidth = Math.max(3, fontSize*0.3);
+ctx.strokeStyle = 'rgba(255,253,248,0.92)';
+ctx.strokeText(d.label, 0, 0);
+ctx.fillStyle = '#4a5a6a';
+ctx.fillText(d.label, 0, 0);
+ctx.restore();
+});
+canvas._colLabelHitboxes = labels.map(d=>({
+key:d.key,lx:d.lx,ly:d.ly,baseLx:d.baseLx,baseLy:d.baseLy,drawScale:d.drawScale,
+angleDeg:Number(((lastCalc && lastCalc.colLabelAngles) || {})[d.key] || 0),
+halfW:Math.max(d.halfW,18),halfH:Math.max(d.halfH,10)
+}));
+ctx.textAlign = 'left';
+ctx.textBaseline = 'alphabetic';
+}
+
+if(scale){
+ctx.fillStyle = '#1f2e3d';
+ctx.font = `${Math.max(10,Math.round(Math.min(W,H)*0.026))}px Georgia`;
+ctx.textAlign = 'left';
+ctx.fillText(`ESCALA 1:${scale}`, pad*0.25, H - pad*0.35);
+if(rotDeg){
+ctx.font = `${Math.max(9,Math.round(Math.min(W,H)*0.02))}px Georgia`;
+ctx.fillStyle = '#4a5a6a';
+ctx.fillText(`PLANO GIRADO ${Math.round(rotDeg)}°`, pad*0.25, H - pad*0.35 + Math.max(13,Math.round(Math.min(W,H)*0.03)));
+}
+}
+
+const R = Math.min(W,H) * 0.05;
+const margin = R * 0.9;
+const cx = W - R - margin - pad*0.28;
+const cy = R + margin + pad*0.28;
+// La brújula se dibuja SIEMPRE igual: fija, marcando el norte real.
+drawNorthArrow(ctx, cx, cy, R);
+}
+
+function drawNorthArrow(ctx, cx, cy, R){
+ctx.save();
+ctx.strokeStyle = '#1f2e3d';
+ctx.lineWidth = Math.max(1, R*0.045);
+ctx.beginPath();
+ctx.arc(cx, cy, R, 0, Math.PI*2);
+ctx.stroke();
+
+ctx.fillStyle = '#1f2e3d';
+ctx.font = `bold ${Math.round(R*0.42)}px Georgia`;
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+const cardinals = [
+{deg:0,   label:'N'},
+{deg:90,  label:'E'},
+{deg:180, label:'S'},
+{deg:270, label:'O'}
+];
+cardinals.forEach(c=>{
+const rad = c.deg*Math.PI/180;
+const x1 = cx + (R-R*0.18)*Math.sin(rad), y1 = cy - (R-R*0.18)*Math.cos(rad);
+const x2 = cx + (R+R*0.18)*Math.sin(rad), y2 = cy - (R+R*0.18)*Math.cos(rad);
+ctx.beginPath();
+ctx.moveTo(x1,y1);
+ctx.lineTo(x2,y2);
+ctx.stroke();
+const lx = cx + (R+R*0.55)*Math.sin(rad), ly = cy - (R+R*0.55)*Math.cos(rad);
+ctx.fillText(c.label, lx, ly);
+});
+ctx.textAlign = 'left';
+ctx.textBaseline = 'alphabetic';
+
+const tipY = cy - R;
+const baseY = cy + R*0.34;
+const wingX = R*0.32;
+ctx.lineWidth = Math.max(1, R*0.05);
+ctx.strokeStyle = '#1f2e3d';
+
+ctx.beginPath();
+ctx.moveTo(cx, tipY);
+ctx.lineTo(cx-wingX, baseY);
+ctx.lineTo(cx, cy);
+ctx.closePath();
+ctx.fillStyle = '#1f2e3d';
+ctx.fill();
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(cx, tipY);
+ctx.lineTo(cx+wingX, baseY);
+ctx.lineTo(cx, cy);
+ctx.closePath();
+ctx.fillStyle = '#fffdf8';
+ctx.fill();
+ctx.stroke();
+
+ctx.restore();
+}
+
+/* =========================
+MÓDULO DE DESMEMBRACIONES
+========================= */
+let canvasForDesmemColLabels = [];
+
+let desmemState = {
+start: null,
+end: null,
+third: null,
+pathChoice: null,
+lastGeom: null,
+applied: null,
+dragging: null,
+interactiveMode: 'route',
+activeVertex: null,
+activeEdge: null,
+activeRouteSegment: null,
+colOverrides: {},
+colLabelAngles: {},
+colLabelOffsets: {},
+vertexLabels: {},
+pointLabels: {A:'A', B:'B', C:'C'}
+};
+
+function polygonArea(points){
+if(!points || points.length < 3) return 0;
+let sum = 0;
+for(let i=0;i<points.length;i++){
+const a = points[i], b = points[(i+1)%points.length];
+sum += a.x*b.y-b.x*a.y;
+}
+return Math.abs(sum)/2;
+}
+
+function dist2(a,b){
+const dx=a.x-b.x, dy=a.y-b.y;
+return dx*dx+dy*dy;
+}
+
+function lerpPoint(a,b,t){
+return {x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t};
+}
+
+function pointOnSegment(p,a,b){
+const vx=b.x-a.x, vy=b.y-a.y;
+const len2=vx*vx+vy*vy || 1;
+let t=((p.x-a.x)*vx+(p.y-a.y)*vy)/len2;
+t=Math.max(0,Math.min(1,t));
+const q=lerpPoint(a,b,t);
+return {point:q,t,dist:Math.hypot(p.x-q.x,p.y-q.y)};
+}
+
+function getDesmemCanvasGeometry(){
+if(!lastCalc || !lastCalc.coords || lastCalc.coords.length<3) return null;
+const canvas=document.getElementById('desmemCanvas');
+if(!canvas) return null;
+const W=canvas.width, H=canvas.height;
+const pts=lastCalc.coords;
+const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+const minX=Math.min(...xs), maxX=Math.max(...xs);
+const minY=Math.min(...ys), maxY=Math.max(...ys);
+const spanX=(maxX-minX)||1, spanY=(maxY-minY)||1;
+const pad=Math.min(W,H)*0.12;
+const availW=W-2*pad, availH=H-2*pad;
+const sc=Math.min(availW/spanX,availH/spanY);
+const drawnW=spanX*sc, drawnH=spanY*sc;
+const offX=pad+(availW-drawnW)/2;
+const offY=pad+(availH-drawnH)/2;
+function toScreen(p){
+return {
+x:offX+(p.x-minX)*sc,
+y:H-offY-(p.y-minY)*sc
+};
+}
+function toWorld(s){
+return {
+x:minX+(s.x-offX)/sc,
+y:minY+(H-offY-s.y)/sc
+};
+}
+return {canvas,pts,toScreen,toWorld,scalePx:sc};
+}
+
+function drawCanvasColindantes(ctx,route){
+canvasForDesmemColLabels = [];
+const segs=uniqueRouteColindantes(route);
+if(!segs.length) return;
+const geom=desmemState.lastGeom;
+if(!geom) return;
+const pts=lastCalc.coords;
+let signed=0;
+for(let i=0;i<pts.length;i++){
+const a=pts[i],b=pts[(i+1)%pts.length];
+signed += a.x*b.y-b.x*a.y;
+}
+ctx.save();
+ctx.font='10px Courier New';
+ctx.fillStyle='#4a5a6a';
+ctx.textAlign='center';
+ctx.textBaseline='middle';
+const hitboxes=[];
+const offsets=desmemState.colLabelOffsets||{};
+segs.forEach(g=>{
+if(!g.name) return;
+const a=geom.toScreen(g.a), b=geom.toScreen(g.b);
+const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1;
+let angle=Math.atan2(dy,dx);
+// Evita que el texto quede invertido.
+if(angle>Math.PI/2 || angle<-Math.PI/2) angle+=Math.PI;
+const savedAngle=Number((desmemState.colLabelAngles||{})[g.key]);
+if(Number.isFinite(savedAngle)) angle += savedAngle*Math.PI/180;
+const nx=signed>0 ? dy/len : -dy/len;
+const ny=signed>0 ? -dx/len : dx/len;
+const baseMidx=(a.x+b.x)/2+nx*14, baseMidy=(a.y+b.y)/2+ny*14;
+const saved=offsets[g.key]||{dx:0,dy:0};
+const midx=baseMidx+(saved.dx||0)*geom.scalePx;
+const midy=baseMidy-(saved.dy||0)*geom.scalePx;
+const maxChars=Math.max(8,Math.min(28,Math.floor(len/6)));
+const text=String(g.name);
+const parts=[];
+for(let i=0;i<text.length;i+=maxChars) parts.push(text.slice(i,i+maxChars));
+ctx.save();
+ctx.translate(midx,midy);
+ctx.rotate(angle);
+ctx.lineWidth=3;
+ctx.strokeStyle='rgba(255,253,248,0.92)';
+parts.slice(0,2).forEach((part,i)=>{
+const py=(i-(parts.length-1)/2)*11;
+ctx.strokeText(part,0,py);
+ctx.fillStyle='#4a5a6a';
+ctx.fillText(part,0,py);
+});
+ctx.restore();
+hitboxes.push({key:g.key,lx:midx,ly:midy,baseLx:baseMidx,baseLy:baseMidy,drawScale:geom.scalePx,halfW:Math.max(22,len/2),halfH:18});
+});
+canvasForDesmemColLabels = hitboxes;
+ctx.restore();
+}
+
+function nearestCanvasVertex(world,geom){
+if(!lastCalc?.coords) return null;
+const maxWorld=16/geom.scalePx;
+let best=null;
+lastCalc.coords.forEach((p,i)=>{
+const d=Math.hypot(world.x-p.x,world.y-p.y);
+if(d<=maxWorld && (!best || d<best.dist)) best={index:i,point:{...p},dist:d};
+});
+return best;
+}
+
+function nearestCanvasEdge(world,geom){
+if(!lastCalc?.coords) return null;
+const maxWorld=16/geom.scalePx;
+let best=null;
+const pts=lastCalc.coords;
+for(let i=0;i<pts.length;i++){
+const hit=pointOnSegment(world,pts[i],pts[(i+1)%pts.length]);
+if(hit.dist<=maxWorld && (!best || hit.dist<best.dist)){
+best={edge:i,a:pts[i],b:pts[(i+1)%pts.length],point:hit.point,dist:hit.dist};
+}
+}
+return best;
+}
+
+function setInteractiveMode(mode){
+desmemState.interactiveMode=mode;
+desmemState.activeVertex=null;
+desmemState.activeEdge=null;
+desmemState.activeRouteSegment=null;
+['route','vertex','col'].forEach(k=>{
+const el=document.getElementById('desmemMode'+(k==='route'?'Route':k==='vertex'?'Vertex':'Col'));
+if(el) el.classList.toggle('active',mode===k);
+});
+updateInteractivePanel();
+drawDesmemPlot();
+}
+
+function updateInteractivePanel(){
+const panel=document.getElementById('desmemInteractivePanel');
+if(!panel) return;
+ensureVertexLabels();
+
+if(desmemState.interactiveMode==='route'){
+const pl=desmemState.pointLabels||{A:'A',B:'B',C:'C'};
+panel.innerHTML=`<strong>Modo recorrido:</strong> seleccioná A, B y C como hasta ahora. También podés arrastrarlos.
+<div class="hint" style="margin:6px 0 8px;">También podés cambiar el nombre de A, B y C. El nombre guardado será el que aparecerá en el cuadro final de estación y P.O. del PDF.</div>
+<div class="desmem-point-labels">
+<label>A <input type="text" id="desmemLabelA" value="${escapeHtml(pl.A||'A')}" placeholder="A"></label>
+<label>B <input type="text" id="desmemLabelB" value="${escapeHtml(pl.B||'B')}" placeholder="B"></label>
+${desmemState.third ? `<label>C <input type="text" id="desmemLabelC" value="${escapeHtml(pl.C||'C')}" placeholder="C"></label>` : ''}
+</div>
+<div class="desmem-interactive-actions"><button type="button" id="desmemSavePointLabels">Guardar nombres A, B y C</button></div>`;
+panel.querySelector('#desmemSavePointLabels').addEventListener('click',()=>{
+const clean=v=>String(v??'').trim();
+desmemState.pointLabels={
+A:clean(panel.querySelector('#desmemLabelA')?.value)||'A',
+B:clean(panel.querySelector('#desmemLabelB')?.value)||'B',
+C:clean(panel.querySelector('#desmemLabelC')?.value)||'C'
+};
+if(desmemState.applied) desmemState.applied.pointLabels={...desmemState.pointLabels};
+fillDesmemForm();
+updateInteractivePanel();
+drawDesmemPlot();
+});
+return;
+}
+
+if(desmemState.interactiveMode==='vertex'){
+const rows=(lastCalc?.coords||[]).map((p,i)=>{
+const selected=desmemState.activeVertex===i?' selected':'';
+return `<div class="desmem-vertex-edit${selected}">
+<span class="vertex-edit-id">E-${i}</span>
+<span class="vertex-edit-coord">X ${p.x.toFixed(3)} · Y ${p.y.toFixed(3)}</span>
+<input type="text" data-vertex-label="${i}" value="${escapeHtml(getVertexLabel(i))}" aria-label="Numeración del vértice E-${i}">
+</div>`;
+}).join('');
+panel.innerHTML=`<strong>Numeración de vértices</strong>
+<div class="hint" style="margin:4px 0 8px;">Podés cambiar la numeración/nombre de cada vértice. Al guardar, esa numeración será la que aparecerá en el cuadro de estación y P.O. del PDF.</div>
+<div class="desmem-vertex-list">${rows}</div>
+<div class="desmem-interactive-actions"><button type="button" id="desmemSaveVertices">Guardar numeración de vértices</button></div>`;
+panel.querySelector('#desmemSaveVertices').addEventListener('click',()=>{
+panel.querySelectorAll('[data-vertex-label]').forEach(inp=>setVertexLabel(Number(inp.dataset.vertexLabel),inp.value));
+if(desmemState.applied) desmemState.applied.vertexLabels={...desmemState.vertexLabels};
+fillDesmemForm();
+updateInteractivePanel();
+drawDesmemPlot();
+});
+panel.querySelectorAll('[data-vertex-label]').forEach(inp=>inp.addEventListener('focus',()=>{
+desmemState.activeVertex=Number(inp.dataset.vertexLabel);
+drawDesmemPlot();
+}));
+return;
+}
+
+const seg=desmemState.activeRouteSegment;
+const route=desmemState.applied?.route;
+if(!route){
+panel.innerHTML='<strong>Modo colindantes:</strong> primero aplicá el recorrido de la desmembración. Después podrás editar cada tramo directamente.';
+return;
+}
+if(!seg){
+panel.innerHTML='<strong>Modo colindantes:</strong> seleccioná una línea para editarla. También podés <strong>arrastrar directamente el nombre del colindante</strong> en el dibujo para cambiar su posición; la posición se guarda para el PDF.';
+return;
+}
+const key=routeSegmentKey(seg.a,seg.b);
+const edge=getBoundaryEdgeIndex(seg.a,seg.b);
+const defaultName=edge>=0 ? ((lastCalc.legs?.[edge]?.colindante||'').trim()||'Finca Matriz') : 'Finca Matriz';
+const name=Object.prototype.hasOwnProperty.call(desmemState.colOverrides,key) ? desmemState.colOverrides[key] : defaultName;
+const labelA=polygonPointLabel(seg.a,!!desmemState.applied?.hasThird);
+const labelB=polygonPointLabel(seg.b,!!desmemState.applied?.hasThird);
+const tipo=edge>=0 ? `Lindero E-${edge} → E-${(edge+1)%lastCalc.coords.length}` : 'Línea de corte';
+panel.innerHTML=`<strong>${labelA} → ${labelB}</strong> · ${tipo}
+<div style="margin-top:7px;font-size:11px;">Colindante para este tramo:</div>
+<input id="desmemInteractiveCol" type="text" value="${escapeHtml(name)}" placeholder="Nombre del colindante">
+<div class="desmem-interactive-actions"><button type="button" id="desmemSaveCol">Guardar colindante</button></div>`;
+const inp=panel.querySelector('#desmemInteractiveCol');
+panel.querySelector('#desmemSaveCol').addEventListener('click',()=>{
+const value=inp.value.trim();
+if(!value){ alert('Escribí un nombre de colindante antes de guardar.'); return; }
+desmemState.colOverrides[key]=value;
+if(desmemState.applied) desmemState.applied.colOverrides={...desmemState.colOverrides};
+renderDesmemColindantes();
+updateInteractivePanel();
+drawDesmemPlot();
+});
+}
+
+function drawDesmemPlot(){
+const geom=getDesmemCanvasGeometry();
+if(!geom) return;
+desmemState.lastGeom=geom;
+const {canvas,pts,toScreen}=geom;
+const ctx=canvas.getContext('2d');
+const W=canvas.width,H=canvas.height;
+ctx.clearRect(0,0,W,H);
+ctx.fillStyle='#fffdf8';
+ctx.fillRect(0,0,W,H);
+
+// Polígono base
+const screenPts=pts.map(toScreen);
+ctx.beginPath();
+screenPts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+ctx.closePath();
+ctx.fillStyle='rgba(138,51,36,0.07)';
+ctx.fill();
+ctx.strokeStyle='#8a3324';
+ctx.lineWidth=2;
+ctx.stroke();
+
+// Lados
+ctx.font='11px Courier New';
+ctx.textAlign='center';
+ctx.textBaseline='middle';
+for(let i=0;i<screenPts.length;i++){
+const a=screenPts[i], b=screenPts[(i+1)%screenPts.length];
+const m={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+ctx.fillStyle='#4a5a6a';
+ctx.fillText(`L-${i+1}`,m.x,m.y);
+}
+
+// Vértices: solo la etiqueta, sin marcador circular (solo la línea del polígono).
+screenPts.forEach((p,i)=>{
+ctx.font='12px Courier New';
+ctx.fillStyle='#1f2e3d';
+ctx.fillText(getVertexLabel(i),p.x+20,p.y-12);
+});
+
+if(desmemState.activeVertex!==null && desmemState.activeVertex!==undefined){
+const p=screenPts[desmemState.activeVertex];
+if(p){
+ctx.beginPath(); ctx.arc(p.x,p.y,10,0,Math.PI*2);
+ctx.strokeStyle='#8a3324'; ctx.lineWidth=3; ctx.stroke();
+}
+}
+if(desmemState.activeRouteSegment){
+const ea=toScreen(desmemState.activeRouteSegment.a), eb=toScreen(desmemState.activeRouteSegment.b);
+ctx.beginPath(); ctx.moveTo(ea.x,ea.y); ctx.lineTo(eb.x,eb.y);
+ctx.strokeStyle='#8a3324'; ctx.lineWidth=8; ctx.stroke();
+}else if(desmemState.activeEdge!==null && desmemState.activeEdge!==undefined){
+const ea=screenPts[desmemState.activeEdge], eb=screenPts[(desmemState.activeEdge+1)%screenPts.length];
+ctx.beginPath(); ctx.moveTo(ea.x,ea.y); ctx.lineTo(eb.x,eb.y);
+ctx.strokeStyle='#8a3324'; ctx.lineWidth=7; ctx.stroke();
+}
+
+// Colindantes: se muestran sobre los lados que forman la porción.
+const labelRoute = desmemState.applied?.route
+|| (desmemState.start && desmemState.end && desmemState.third && desmemState.pathChoice
+? getCutRoutePair()?.[desmemState.pathChoice] || pts
+: pts);
+drawCanvasColindantes(ctx,labelRoute);
+
+// Líneas de corte A–C y C–B. El recorrido elegido se resalta en verde.
+if(desmemState.start && desmemState.end){
+const sa=toScreen(desmemState.start.point), sb=toScreen(desmemState.end.point);
+const sc=desmemState.third ? toScreen(desmemState.third.point) : null;
+ctx.beginPath();
+ctx.moveTo(sa.x,sa.y);
+if(sc) ctx.lineTo(sc.x,sc.y);
+ctx.lineTo(sb.x,sb.y);
+ctx.strokeStyle='#1f2e3d';
+ctx.lineWidth=3;
+ctx.stroke();
+
+if(desmemState.pathChoice){
+const chosen=getCutRoutePair()?.[desmemState.pathChoice];
+if(chosen){
+ctx.beginPath();
+chosen.forEach((p,i)=>{ const q=toScreen(p); if(i===0)ctx.moveTo(q.x,q.y);else ctx.lineTo(q.x,q.y); });
+ctx.closePath();
+ctx.strokeStyle='#3c6b4a';
+ctx.lineWidth=5;
+ctx.stroke();
+}
+}
+drawSelectionPoint(ctx,sa,'A');
+drawSelectionPoint(ctx,sb,'B');
+if(sc) drawSelectionPoint(ctx,sc,'C');
+}else{
+const pl=desmemState.pointLabels||{A:'A',B:'B',C:'C'};
+if(desmemState.start) drawSelectionPoint(ctx,toScreen(desmemState.start.point),pl.A||'A');
+if(desmemState.end) drawSelectionPoint(ctx,toScreen(desmemState.end.point),pl.B||'B');
+if(desmemState.third) drawSelectionPoint(ctx,toScreen(desmemState.third.point),pl.C||'C');
+}
+}
+
+function drawSelectionPoint(ctx,p,label){
+ctx.beginPath();
+ctx.arc(p.x,p.y,9,0,Math.PI*2);
+ctx.fillStyle='#fffdf8';
+ctx.fill();
+ctx.lineWidth=3;
+ctx.strokeStyle='#8a3324';
+ctx.stroke();
+ctx.fillStyle='#8a3324';
+ctx.font='bold 12px Courier New';
+ctx.textAlign='center';
+ctx.textBaseline='middle';
+ctx.fillText(label,p.x,p.y);
+}
+
+function pointInPolygon(point, points=lastCalc?.coords){
+if(!points || points.length<3) return false;
+let inside=false;
+for(let i=0,j=points.length-1;i<points.length;j=i++) {
+const xi=points[i].x, yi=points[i].y;
+const xj=points[j].x, yj=points[j].y;
+const intersects=((yi>point.y)!==(yj>point.y)) &&
+(point.x < (xj-xi)*(point.y-yi)/((yj-yi)||1e-15)+xi);
+if(intersects) inside=!inside;
+}
+return inside;
+}
+
+function locateInteriorPoint(world){
+if(!lastCalc || !lastCalc.coords) return null;
+if(!pointInPolygon(world)) return null;
+return {point:{...world}, edge:null, t:null, vertex:null, interior:true};
+}
+
+function segmentInsidePolygon(a,b){
+if(!lastCalc?.coords) return false;
+const len=Math.hypot(b.x-a.x,b.y-a.y);
+const steps=Math.max(20,Math.ceil(len/0.25));
+for(let i=1;i<steps;i++) {
+const t=i/steps;
+const p={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
+if(!pointInPolygon(p)) return false;
+}
+return true;
+}
+
+function cutRouteIsValid(route,third){
+if(!route || route.length<2) return false;
+if(!third) return true;
+if(!pointInPolygon(third.point)) return false;
+const boundaryEnd=route[route.length-2];
+return !!boundaryEnd && segmentInsidePolygon(route[0],third.point) && segmentInsidePolygon(third.point,boundaryEnd);
+}
+
+function buildCutRoute(from,to,third){
+const boundary=buildBoundaryRoute(from,to);
+if(!third) return boundary;
+return boundary.concat([{...third.point}]);
+}
+
+function getCutRoutePair(){
+if(!desmemState.start || !desmemState.end) return null;
+return {
+A: buildCutRoute(desmemState.start,desmemState.end,desmemState.third),
+B: buildCutRoute(desmemState.end,desmemState.start,desmemState.third)
+};
+}
+
+function locateBoundaryPoint(world){
+if(!lastCalc || !lastCalc.coords) return null;
+const pts=lastCalc.coords;
+let best=null;
+
+for(let i=0;i<pts.length;i++){
+const d=Math.sqrt(dist2(world,pts[i]));
+if(!best || d<best.dist){
+best={point:{...pts[i]},edge:i,t:0,dist:d,vertex:i};
+}
+}
+
+for(let i=0;i<pts.length;i++){
+const a=pts[i], b=pts[(i+1)%pts.length];
+const hit=pointOnSegment(world,a,b);
+if(!best || hit.dist<best.dist){
+best={point:hit.point,edge:i,t:hit.t,dist:hit.dist,vertex:null};
+}
+}
+
+// Ajuste de tolerancia: siempre se permite seleccionar sobre el polígono,
+// pero se evita seleccionar un punto demasiado alejado del borde.
+const geom=desmemState.lastGeom;
+const toleranceWorld=geom ? 18/geom.scalePx : Infinity;
+if(best && best.dist<=toleranceWorld) return best;
+return null;
+}
+
+function boundaryPosition(sel){
+// Posición continua sobre el perímetro: vértice E-i = i; punto sobre lado i = i+t.
+if(sel.vertex!==null && sel.vertex!==undefined) return sel.vertex;
+return sel.edge + sel.t;
+}
+
+function sameBoundaryPoint(a,b){
+const n=lastCalc.coords.length;
+const pa=boundaryPosition(a), pb=boundaryPosition(b);
+const d=Math.abs(pa-pb);
+return d<1e-7 || Math.abs(d-n)<1e-7;
+}
+
+function buildBoundaryRoute(from,to){
+const pts=lastCalc.coords;
+const n=pts.length;
+const pf=boundaryPosition(from), pt=boundaryPosition(to);
+const out=[{...from.point}];
+
+if(pt>=pf){
+// Avanzar en sentido de los índices.
+for(let i=Math.ceil(pf); i<=Math.floor(pt); i++){
+if(i>pf && i<n) out.push({...pts[i%n]});
+}
+}else{
+// El recorrido cruza E-0.
+for(let i=Math.ceil(pf); i<n; i++){
+if(i>pf) out.push({...pts[i%n]});
+}
+out.push({...pts[0]});
+for(let i=1; i<=Math.floor(pt); i++){
+out.push({...pts[i]});
+}
+}
+out.push({...to.point});
+
+// Elimina duplicados consecutivos.
+return out.filter((p,i,arr)=>i===0 || Math.hypot(p.x-arr[i-1].x,p.y-arr[i-1].y)>1e-9);
+}
+
+function boundarySelectionAt(position){
+const pts=lastCalc.coords, n=pts.length;
+const pos=((position%n)+n)%n;
+const i=Math.floor(pos), t=pos-i, eps=1e-10;
+if(t<eps) return {point:{...pts[i%n]},edge:i%n,t:0,vertex:i%n};
+const a=pts[i%n], b=pts[(i+1)%n];
+return {point:lerpPoint(a,b,t),edge:i%n,t,vertex:null};
+}
+
+function areaForManualCandidate(A,B,third,direction){
+const route=direction==='A' ? buildCutRoute(A,B,third) : buildCutRoute(B,A,third);
+if(!cutRouteIsValid(route,third)) return null;
+const area=polygonArea(route);
+if(!Number.isFinite(area) || area<=0 || area>=lastCalc.areaM2) return null;
+return {area,route};
+}
+
+function solveManualAreaSelection(targetArea){
+if(!lastCalc || !desmemState.start || !desmemState.end) return null;
+const A=desmemState.start, n=lastCalc.coords.length, pf=boundaryPosition(A);
+let best=null;
+const samples=Math.max(1000,n*220);
+
+['A','B'].forEach(direction=>{
+let prev=null;
+for(let k=1;k<=samples;k++){
+const delta=n*k/samples;
+const pos=direction==='A' ? pf+delta : pf-delta;
+const B=boundarySelectionAt(pos);
+if(sameBoundaryPoint(A,B)) continue;
+const cand=areaForManualCandidate(A,B,desmemState.third,direction);
+if(!cand){ prev=null; continue; }
+const err=Math.abs(cand.area-targetArea);
+if(!best || err<best.error) best={...cand,B,direction,pos,error:err};
+
+if(prev && (prev.area-targetArea)*(cand.area-targetArea)<=0){
+let lo=prev.delta, hi=delta, chosen=best;
+for(let it=0;it<45;it++){
+const mid=(lo+hi)/2;
+const p=direction==='A' ? pf+mid : pf-mid;
+const BM=boundarySelectionAt(p);
+const cm=areaForManualCandidate(A,BM,desmemState.third,direction);
+if(!cm){ lo=mid; continue; }
+if(Math.abs(cm.area-targetArea)<Math.abs(chosen.area-targetArea)){
+chosen={...cm,B:BM,direction,pos:p,error:Math.abs(cm.area-targetArea)};
+}
+if((cm.area-targetArea)*(prev.area-targetArea)<=0) hi=mid; else lo=mid;
+}
+if(!best || chosen.error<best.error) best=chosen;
+}
+prev={area:cand.area,delta};
+}
+});
+if(!best) return null;
+best.exact=best.error<=Math.max(0.0001,targetArea*0.00001);
+return best;
+}
+
+function desmemClosedPolygon(route){
+// La ruta de borde + línea directa de final a inicio.
+return route.slice();
+}
+
+function formatPoint(sel){
+if(!sel) return 'Sin seleccionar';
+if(sel.interior) return `C: X ${sel.point.x.toFixed(3)} · Y ${sel.point.y.toFixed(3)}`;
+const n=lastCalc.coords.length;
+if(sel.vertex!==null && sel.vertex!==undefined) return `E-${sel.vertex}`;
+const a=sel.edge, b=(a+1)%n;
+return `L-${a+1}: ${(sel.t*100).toFixed(1)}% de E-${a} hacia E-${b}`;
+}
+
+function updateDesmemUI(){
+ensureVertexLabels();
+const startEl=document.getElementById('desmemStart');
+const endEl=document.getElementById('desmemEnd');
+const thirdEl=document.getElementById('desmemThird');
+const status=document.getElementById('desmemStatus');
+const choice=document.getElementById('desmemChoice');
+const result=document.getElementById('desmemResult');
+const mode=document.getElementById('desmemMode')?.value || 'grafico';
+const areaWrap=document.getElementById('desmemManualAreaWrap');
+
+if(areaWrap) areaWrap.style.display=mode==='area'?'block':'none';
+startEl.textContent=formatPoint(desmemState.start);
+endEl.textContent=formatPoint(desmemState.end);
+if(thirdEl) thirdEl.textContent=formatPoint(desmemState.third);
+
+if(!lastCalc){
+status.textContent='Primero calculá el polígono en la sección 02.';
+choice.classList.remove('show'); result.classList.remove('show'); drawDesmemPlot(); return;
+}
+if(!desmemState.start){
+status.textContent='Seleccioná el punto A sobre el perímetro.';
+choice.classList.remove('show'); result.classList.remove('show');
+}else if(!desmemState.end){
+status.textContent='Ahora seleccioná el punto B sobre el perímetro. El punto C es opcional.';
+choice.classList.remove('show'); result.classList.remove('show');
+}else if(sameBoundaryPoint(desmemState.start,desmemState.end)){
+status.textContent='Los puntos A y B no pueden ser el mismo. Mové uno de los puntos.';
+choice.classList.remove('show'); result.classList.remove('show');
+}else if(mode==='area'){
+choice.classList.remove('show');
+const raw=parseFloat(document.getElementById('desmemManualArea')?.value||'');
+const area=Number.isFinite(raw)?raw:0;
+const maxArea=lastCalc.areaM2;
+if(area<=0 || area>=maxArea){
+status.textContent=`Ingresá un área mayor que 0 y menor que el área original (${maxArea.toFixed(4)} m²).`;
+result.classList.remove('show');
+}else{
+const solved=solveManualAreaSelection(area);
+if(!solved){
+status.textContent='No encontré una posición válida de B para esa área. Probá mover A o C.';
+result.classList.remove('show');
+}else{
+desmemState.end=solved.B;
+desmemState.pathChoice=solved.direction;
+const actualArea=solved.area;
+const cutAC=desmemState.third ? Math.hypot(desmemState.third.point.x-desmemState.start.point.x,desmemState.third.point.y-desmemState.start.point.y) : 0;
+const cutCB=desmemState.third ? Math.hypot(desmemState.end.point.x-desmemState.third.point.x,desmemState.end.point.y-desmemState.third.point.y) : 0;
+const cutAB=Math.hypot(desmemState.end.point.x-desmemState.start.point.x,desmemState.end.point.y-desmemState.start.point.y);
+const cutLen=desmemState.third ? cutAC+cutCB : cutAB;
+document.getElementById('desmemAreaM2').textContent=actualArea.toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4})+' m²';
+document.getElementById('desmemAreaOther').textContent=`${(actualArea/(VARA_M*VARA_M)).toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4})} varas² · ${(actualArea/CUERDA_M2).toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4})} cuerdas`;
+document.getElementById('desmemCutLine').textContent=desmemState.third
+? `Líneas de corte: A–C ${cutAC.toFixed(3)} m · C–B ${cutCB.toFixed(3)} m`
+: `Línea de corte: A–B ${cutLen.toFixed(3)} m`;
+document.getElementById('desmemRemaining').textContent=`Área restante: ${(maxArea-actualArea).toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4})} m²`;
+result.classList.add('show');
+status.textContent=solved.exact
+? `Área ajustada automáticamente a ${actualArea.toFixed(4)} m². Se movió B sobre el perímetro; A${desmemState.third?' y C':''} se mantuvo fijo.`
+: `La posición más cercana encontrada da ${actualArea.toFixed(4)} m² para un objetivo de ${area.toFixed(4)} m². Probá mover A${desmemState.third?' o C':''}.`;
+}
+}
+}else{
+const pair=getCutRoutePair();
+const valid = !!pair && cutRouteIsValid(pair.A,desmemState.third) && cutRouteIsValid(pair.B,desmemState.third);
+if(!valid){
+choice.classList.remove('show'); result.classList.remove('show');
+status.textContent=desmemState.third
+? 'El punto C debe quedar dentro del polígono y los segmentos A–C y C–B deben permanecer dentro del predio. Mové C y probá nuevamente.'
+: 'La selección de A y B es válida. Elegí el recorrido que corresponde a la porción que querés desmembrar.';
+}else{
+const areaA=polygonArea(pair.A), areaB=polygonArea(pair.B);
+document.getElementById('desmemPathA').textContent=`Recorrido 1 — ${areaA.toFixed(3)} m²`;
+document.getElementById('desmemPathB').textContent=`Recorrido 2 — ${areaB.toFixed(3)} m²`;
+choice.classList.add('show');
+if(desmemState.pathChoice){
+const area=desmemState.pathChoice==='A'?areaA:areaB;
+const cutAC=desmemState.third ? Math.hypot(desmemState.third.point.x-desmemState.start.point.x,desmemState.third.point.y-desmemState.start.point.y) : 0;
+const cutCB=desmemState.third ? Math.hypot(desmemState.end.point.x-desmemState.third.point.x,desmemState.end.point.y-desmemState.third.point.y) : 0;
+const cutAB=Math.hypot(desmemState.end.point.x-desmemState.start.point.x,desmemState.end.point.y-desmemState.start.point.y);
+document.getElementById('desmemAreaM2').textContent=area.toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4})+' m²';
+document.getElementById('desmemAreaOther').textContent=`${(area/(VARA_M*VARA_M)).toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4})} varas² · ${(area/CUERDA_M2).toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4})} cuerdas`;
+document.getElementById('desmemCutLine').textContent=desmemState.third
+? `Líneas de corte: A–C ${cutAC.toFixed(3)} m · C–B ${cutCB.toFixed(3)} m`
+: `Línea de corte: A–B ${cutAB.toFixed(3)} m`;
+document.getElementById('desmemRemaining').textContent=`Área restante: ${(lastCalc.areaM2-area).toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4})} m²`;
+result.classList.add('show');
+document.getElementById('desmemPathA').classList.toggle('selected',desmemState.pathChoice==='A');
+document.getElementById('desmemPathB').classList.toggle('selected',desmemState.pathChoice==='B');
+status.textContent='Recorrido seleccionado. Podés arrastrar A o B; C es opcional y también se puede mover.';
+}else{
+result.classList.remove('show');
+status.textContent='Elegí el recorrido que corresponde a la porción que querés desmembrar.';
+}
+}
+}
+drawDesmemPlot();
+}
+
+function resetDesmemSelection(){
+desmemState.start=null;
+desmemState.end=null;
+desmemState.third=null;
+desmemState.pathChoice=null;
+desmemState.applied=null;
+desmemState.dragging=null;
+desmemState.activeVertex=null;
+desmemState.activeEdge=null;
+desmemState.activeRouteSegment=null;
+desmemState.colOverrides={};
+desmemState.colLabelAngles={};
+desmemState.colLabelOffsets={};
+desmemState.vertexLabels={};
+desmemState.pointLabels={A:'A',B:'B',C:'C'};
+desmemState.interactiveMode='route';
+const manual=document.getElementById('desmemManualArea'); if(manual) manual.value='';
+const form=document.getElementById('desmemForm');
+if(form) form.classList.remove('show');
+const colBox=document.getElementById('desmemColindantes');
+if(colBox) colBox.innerHTML='';
+updateDesmemUI();
+}
+
+function fillDesmemForm(){
+const a=desmemState.applied;
+if(!a || !lastCalc) return;
+ensureVertexLabels();
+a.vertexLabels={...desmemState.vertexLabels};
+a.colOverrides={...desmemState.colOverrides};
+a.pointLabels={...desmemState.pointLabels};
+const vr=a.areaM2/(VARA_M*VARA_M), cu=a.areaM2/CUERDA_M2;
+document.getElementById('d_area').value=`${a.areaM2.toFixed(4)} m²`;
+document.getElementById('d_area_restante').value=`${a.remainingM2.toFixed(4)} m²`;
+document.getElementById('d_sum_m2').textContent=`${a.areaM2.toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4})} m²`;
+document.getElementById('d_sum_vr').textContent=vr.toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4});
+document.getElementById('d_sum_cu').textContent=cu.toLocaleString('es-GT',{minimumFractionDigits:4,maximumFractionDigits:4});
+document.getElementById('d_sum_linea').textContent=a.hasThird ? `A–C ${a.cutAC.toFixed(3)} m · C–B ${a.cutCB.toFixed(3)} m` : `A–B ${a.cutAB.toFixed(3)} m`;
+const route=cleanPolygonRoute(a.route);
+const rows=route.map(p=>{
+const label=polygonPointLabel(p,a.hasThird);
+const vi=(lastCalc.coords||[]).findIndex(v=>samePoint(v,p));
+return `<tr class="desmem-coord-row${desmemState.activeVertex===vi?' selected':''}" data-route-vertex="${vi}" title="Clic para seleccionar este vértice"><td>${label}</td><td>${p.x.toFixed(3)}</td><td>${p.y.toFixed(3)}</td></tr>`;
+}).join('');
+const distRows=getPdfDistanceRows(route,a.hasThird);
+const distHtml=distRows.map(r=>`<tr><td>${r.est}</td><td>${r.po}</td><td>${r.orient}</td><td>${r.dist.toFixed(3)}</td></tr>`).join('');
+document.getElementById('desmemCoords').innerHTML=`<table><thead><tr><th>Punto</th><th>X (m)</th><th>Y (m)</th></tr></thead><tbody>${rows}</tbody></table><table style="margin-top:10px;"><thead><tr><th>Estación</th><th>P.O.</th><th>Orientación</th><th>Dist. (m)</th></tr></thead><tbody>${distHtml}</tbody></table>`;
+document.querySelectorAll('#desmemCoords [data-route-vertex]').forEach(row=>row.addEventListener('click',()=>{
+const vi=Number(row.dataset.routeVertex);
+if(vi<0) return;
+setInteractiveMode('vertex');
+desmemState.activeVertex=vi;
+updateInteractivePanel();
+drawDesmemPlot();
+}));
+renderDesmemColindantes();
+document.getElementById('desmemForm').classList.add('show');
+}
+
+function getAppliedArea(){
+const a=desmemState.applied;
+if(!a) return null;
+return a.areaM2;
+}
+
+function getPdfTransform(points,m,y,innerW,drawH){
+const pad=14, xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+const spanX=(maxX-minX)||1,spanY=(maxY-minY)||1;
+const dw=innerW-2*pad,dh=drawH-2*pad;
+// Se usa una escala "bonita" (1:50, 1:100, 1:200, ...), igual que en el plano
+// general, en lugar de un factor arbitrario de ajuste al recuadro.
+const scaleDenom=pickNiceScale(spanX,spanY);
+const sc=1000/scaleDenom; // mm por metro
+const ox=m+pad+(dw-spanX*sc)/2, oy=y+pad+(dh-spanY*sc)/2;
+const fn=p=>({x:ox+(p.x-minX)*sc,y:y+drawH-(oy-y)-(p.y-minY)*sc});
+fn.scale=scaleDenom;
+return fn;
+}
+
+function samePoint(a,b,tol=1e-7){
+return !!a && !!b && Math.hypot(a.x-b.x,a.y-b.y)<=tol;
+}
+
+function cleanPolygonRoute(route){
+if(!route || !route.length) return [];
+const out=[];
+route.forEach(p=>{
+if(!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
+if(!out.length || !samePoint(out[out.length-1],p)) out.push({x:p.x,y:p.y});
+});
+if(out.length>1 && samePoint(out[0],out[out.length-1])) out.pop();
+return out;
+}
+
+function ensureVertexLabels(){
+if(!lastCalc?.coords) return;
+if(!desmemState.vertexLabels) desmemState.vertexLabels={};
+lastCalc.coords.forEach((p,i)=>{
+if(!desmemState.vertexLabels[i]) desmemState.vertexLabels[i]=`V-${i+1}`;
+});
+}
+
+function getVertexLabel(index){
+ensureVertexLabels();
+return desmemState.vertexLabels?.[index] || `V-${index+1}`;
+}
+
+function setVertexLabel(index,value){
+ensureVertexLabels();
+const clean=String(value??'').trim();
+desmemState.vertexLabels[index]=clean || `V-${index+1}`;
+}
+
+function findOriginalVertexIndex(point){
+const pts=lastCalc?.coords||[];
+return pts.findIndex(v=>samePoint(v,point));
+}
+
+function polygonPointLabel(point,hasThird){
+const A=desmemState.start?.point, B=desmemState.end?.point, C=desmemState.third?.point;
+const labels=desmemState.pointLabels||{A:'A',B:'B',C:'C'};
+if(samePoint(point,A)) return labels.A||'A';
+if(hasThird && samePoint(point,C)) return labels.C||'C';
+if(samePoint(point,B)) return labels.B||'B';
+const vi=findOriginalVertexIndex(point);
+return vi>=0 ? getVertexLabel(vi) : 'P';
+}
+
+function getRemainingRoute(){
+const a=desmemState.applied;
+if(!a || !desmemState.start || !desmemState.end) return null;
+const dir=a.routeDirection || desmemState.pathChoice;
+const boundaryOpp=dir==='A'
+? buildBoundaryRoute(desmemState.end,desmemState.start)
+: buildBoundaryRoute(desmemState.start,desmemState.end);
+// Complemento: recorrido opuesto del lindero + C para cerrar la porción restante.
+return desmemState.third ? boundaryOpp.concat([{...desmemState.third.point}]) : boundaryOpp;
+}
+
+function getBoundaryEdgeIndex(a,b){
+if(!lastCalc || !lastCalc.coords || !lastCalc.legs) return -1;
+const pts=lastCalc.coords, mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+let best=-1,bestDist=Infinity;
+for(let i=0;i<pts.length;i++){
+const q=pointOnSegment(mid,pts[i],pts[(i+1)%pts.length]);
+const len=Math.hypot(b.x-a.x,b.y-a.y);
+const segMidDist=q.dist;
+const wholeLen=Math.hypot(pts[(i+1)%pts.length].x-pts[i].x,pts[(i+1)%pts.length].y-pts[i].y);
+if(segMidDist < bestDist && wholeLen > 0 && len > 0){
+// El recorrido puede avanzar en el mismo sentido o en sentido contrario
+// al polígono original. Para identificar el lindero basta que las líneas
+// sean colineales y paralelas, independientemente de su orientación.
+const ux=(b.x-a.x)/len, uy=(b.y-a.y)/len;
+const vx=(pts[(i+1)%pts.length].x-pts[i].x)/wholeLen;
+const vy=(pts[(i+1)%pts.length].y-pts[i].y)/wholeLen;
+if(Math.abs(ux*vx+uy*vy) > 0.999){
+bestDist=segMidDist; best=i;
+}
+}
+}
+return best;
+}
+
+function segmentOverlapOnSameLine(a,b,c,d){
+// Longitud de solapamiento entre AB y CD cuando están sobre la misma recta.
+const abx=b.x-a.x, aby=b.y-a.y, abLen=Math.hypot(abx,aby);
+if(abLen<1e-9) return 0;
+const ux=abx/abLen, uy=aby/abLen;
+const cross1=Math.abs((c.x-a.x)*uy-(c.y-a.y)*ux);
+const cross2=Math.abs((d.x-a.x)*uy-(d.y-a.y)*ux);
+const tol=Math.max(1e-6,abLen*1e-6);
+if(cross1>tol || cross2>tol) return 0;
+const p1=(c.x-a.x)*ux+(c.y-a.y)*uy;
+const p2=(d.x-a.x)*ux+(d.y-a.y)*uy;
+const lo=Math.max(0,Math.min(p1,p2)), hi=Math.min(abLen,Math.max(p1,p2));
+return Math.max(0,hi-lo);
+}
+
+function routeSegmentKey(a,b){
+const k=p=>`${Number(p.x).toFixed(7)},${Number(p.y).toFixed(7)}`;
+const aKey=k(a), bKey=k(b);
+return aKey<bKey ? `${aKey}|${bKey}` : `${bKey}|${aKey}`;
+}
+
+function getRouteBoundarySegments(route){
+if(!route || route.length<2 || !lastCalc?.coords) return [];
+const out=[];
+const n=route.length;
+for(let i=0;i<n;i++){
+const a=route[i], b=route[(i+1)%n];
+const edge=getBoundaryEdgeIndex(a,b);
+if(edge>=0){
+const key=routeSegmentKey(a,b);
+const base=(lastCalc.legs?.[edge]?.colindante||'').trim() || 'Finca Matriz';
+const name=Object.prototype.hasOwnProperty.call(desmemState.colOverrides,key) ? desmemState.colOverrides[key] : base;
+out.push({a:{...a},b:{...b},edge,key,name});
+}
+}
+return out;
+}
+
+function getInteractiveRouteSegments(route){
+if(!route || route.length<2) return [];
+const out=[];
+const n=route.length;
+for(let i=0;i<n;i++){
+const a=route[i], b=route[(i+1)%n];
+const dist=Math.hypot(b.x-a.x,b.y-a.y);
+if(dist<1e-9) continue;
+const edge=getBoundaryEdgeIndex(a,b);
+const key=routeSegmentKey(a,b);
+const base=edge>=0 ? ((lastCalc.legs?.[edge]?.colindante||'').trim()||'Finca Matriz') : 'Finca Matriz';
+const name=Object.prototype.hasOwnProperty.call(desmemState.colOverrides,key) ? desmemState.colOverrides[key] : base;
+out.push({index:i,a:{...a},b:{...b},edge,key,name});
+}
+return out;
+}
+
+function nearestInteractiveRouteSegment(world,geom){
+const route=desmemState.applied?.route;
+const segs=getInteractiveRouteSegments(route);
+if(!segs.length) return null;
+const maxWorld=18/geom.scalePx;
+let best=null;
+segs.forEach(seg=>{
+const hit=pointOnSegment(world,seg.a,seg.b);
+if(hit.dist<=maxWorld && (!best || hit.dist<best.dist)) best={...seg,dist:hit.dist};
+});
+return best;
+}
+
+function getRouteColindantes(route){
+return getRouteBoundarySegments(route);
+}
+
+function uniqueRouteColindantes(route){
+const segs=getRouteBoundarySegments(route);
+const groups=[];
+segs.forEach(seg=>{
+const last=groups[groups.length-1];
+if(last && last.name===seg.name && last.edge===seg.edge){
+last.b=seg.b;
+}else{
+groups.push({...seg});
+}
+});
+return groups;
+}
+
+function renderDesmemColindantes(){
+const box=document.getElementById('desmemColindantes');
+if(!box) return;
+const a=desmemState.applied;
+const route=a?.route;
+if(!route){
+box.innerHTML='<div class="hint">Aplicá la selección para mostrar y editar los colindantes de cada tramo de la porción desmembrada.</div>';
+return;
+}
+const segs=getInteractiveRouteSegments(route);
+if(!segs.length){
+box.innerHTML='<div class="hint">No hay tramos disponibles para editar.</div>';
+return;
+}
+box.innerHTML=`<div class="desmem-col-save-help">Seleccioná el tramo que quieras o <strong>arrastrá el nombre del colindante</strong> en el dibujo. Podés mover los nombres de todos los lados; la posición se conserva para el PDF.</div>`+
+segs.map(g=>{
+const selected=desmemState.activeRouteSegment?.key===g.key ? ' selected' : '';
+const la=polygonPointLabel(g.a,a.hasThird), lb=polygonPointLabel(g.b,a.hasThird);
+const tipo=g.edge>=0 ? `E-${g.edge} → E-${(g.edge+1)%lastCalc.coords.length}` : 'Línea de corte';
+return `<div class="desmem-colindante${selected}" data-route-col-key="${escapeHtml(g.key)}">
+<span class="mini-label">${la} → ${lb} · ${tipo}</span>
+<input class="desmem-col-input" data-col-input="${escapeHtml(g.key)}" type="text" value="${escapeHtml(g.name)}" placeholder="Nombre del colindante">
+<div class="desmem-col-card-actions">
+<button type="button" class="ghost" data-select-col="${escapeHtml(g.key)}">Seleccionar línea</button>
+<button type="button" data-save-col="${escapeHtml(g.key)}">Guardar</button>
+</div>
+</div>`;
+}).join('');
+
+box.querySelectorAll('[data-select-col]').forEach(btn=>btn.addEventListener('click',()=>{
+const key=btn.dataset.selectCol;
+const seg=getInteractiveRouteSegments(route).find(x=>x.key===key);
+if(!seg) return;
+setInteractiveMode('col');
+desmemState.activeRouteSegment=seg;
+desmemState.activeEdge=seg.edge>=0 ? seg.edge : null;
+desmemState.activeVertex=null;
+updateInteractivePanel();
+drawDesmemPlot();
+}));
+
+box.querySelectorAll('[data-save-col]').forEach(btn=>btn.addEventListener('click',()=>{
+const key=btn.dataset.saveCol;
+const inp=box.querySelector(`[data-col-input="${CSS.escape(key)}"]`);
+const value=inp?.value.trim()||'';
+if(!value){ alert('Escribí un nombre de colindante antes de guardar.'); return; }
+desmemState.colOverrides[key]=value;
+if(desmemState.applied) desmemState.applied.colOverrides={...desmemState.colOverrides};
+const seg=getInteractiveRouteSegments(route).find(x=>x.key===key);
+if(seg) desmemState.activeRouteSegment=seg;
+renderDesmemColindantes();
+updateInteractivePanel();
+drawDesmemPlot();
+}));
+}
+
+function escapeHtml(value){
+return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function pdfField(primary,fallback=''){
+const a=document.getElementById(primary)?.value?.trim()||'';
+if(a) return a;
+return fallback ? (document.getElementById(fallback)?.value?.trim()||'') : '';
+}
+
+function getCardinalDirectionForSegment(a,b,poly){
+if(!poly || poly.length<3) return 'Norte';
+let signed=0, cx=0, cy=0;
+for(let i=0;i<poly.length;i++){
+const p=poly[i], q=poly[(i+1)%poly.length];
+signed += p.x*q.y-q.x*p.y;
+cx += p.x; cy += p.y;
+}
+cx/=poly.length; cy/=poly.length;
+const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy)||1;
+// Normal exterior según la orientación del polígono.
+let nx, ny;
+if(signed>0){ nx=dy/len; ny=-dx/len; }
+else { nx=-dy/len; ny=dx/len; }
+const ax=Math.abs(nx), ay=Math.abs(ny);
+if(ay>=ax) return ny>=0 ? 'Norte' : 'Sur';
+return nx>=0 ? 'Este' : 'Oeste';
+}
+
+function directionalColindantes(items, poly, cutItems=[]){
+const dirs={Norte:[],Este:[],Sur:[],Oeste:[]};
+const add=(a,b,name)=>{
+if(!a || !b || !name) return;
+const d=getCardinalDirectionForSegment(a,b,poly);
+const clean=String(name).trim() || 'Finca Matriz';
+// Conservamos cada colindante distinto de la misma orientación,
+// sin eliminarlo por aparecer en otro tramo.
+if(!dirs[d].includes(clean)) dirs[d].push(clean);
+};
+(items||[]).forEach(g=>add(g.a,g.b,g.name));
+(cutItems||[]).forEach(g=>add(g.a,g.b,g.name));
+return Object.entries(dirs).filter(([,v])=>v.length).map(([dir,names])=>[dir,names]);
+}
+
+function directionalColindantesText(items, poly, cutItems=[]){
+const rows=directionalColindantes(items,poly,cutItems);
+return rows.length ? rows.map(([d,names])=>`Al ${d.toLowerCase()}: ${names.join(' / ')}`).join(' | ') : 'No especificados';
+}
+
+function makeCutColindantItems(a, mode){
+if(!a || !desmemState.start || !desmemState.end) return [];
+const fallback=mode==='desmem' ? 'Finca Matriz' : 'Área Desmembrada';
+const A={...desmemState.start.point}, B={...desmemState.end.point};
+const items=[];
+if(a.hasThird && desmemState.third){
+const C={...desmemState.third.point};
+[[A,C],[C,B]].forEach(([p,q])=>{
+const key=routeSegmentKey(p,q);
+const name=mode==='desmem' && Object.prototype.hasOwnProperty.call(desmemState.colOverrides,key) ? desmemState.colOverrides[key] : fallback;
+items.push({a:p,b:q,name});
+});
+}else{
+const key=routeSegmentKey(A,B);
+const name=mode==='desmem' && Object.prototype.hasOwnProperty.call(desmemState.colOverrides,key) ? desmemState.colOverrides[key] : fallback;
+items.push({a:A,b:B,name});
+}
+return items;
+}
+
+function setupPdfHeader(doc,titulo,val,m,innerW,pageH){
+doc.setDrawColor(30,40,50); doc.setLineWidth(0.5); doc.rect(m,m,innerW,pageH-2*m);
+doc.setLineWidth(0.3); doc.line(m,m+18,m+innerW,m+18); doc.line(m+innerW*0.55,m,m+innerW*0.55,m+18);
+doc.setFont('times','normal'); doc.setFontSize(11); doc.setTextColor(30,40,50);
+doc.text(titulo,m+4,m+11);
+doc.setFontSize(9); doc.text(`No. ${val('d_no')}`,m+innerW*0.55+4,m+8); doc.text(`De ${val('d_de')}`,m+innerW*0.55+4,m+15);
+}
+
+function drawPdfPolygon(doc,poly,style='FD'){
+if(!poly || poly.length<3) return;
+const rel=[];
+for(let i=1;i<poly.length;i++) rel.push([poly[i].x-poly[i-1].x,poly[i].y-poly[i-1].y]);
+rel.push([poly[0].x-poly[poly.length-1].x,poly[0].y-poly[poly.length-1].y]);
+doc.lines(rel,poly[0].x,poly[0].y,[1,1],style,true);
+}
+
+function drawPdfPolyline(doc,poly){
+if(!poly || poly.length<2) return;
+const rel=[];
+for(let i=1;i<poly.length;i++) rel.push([poly[i].x-poly[i-1].x,poly[i].y-poly[i-1].y]);
+doc.lines(rel,poly[0].x,poly[0].y,[1,1],'S',false);
+}
+
+function drawPdfColindantes(doc,route,S,m,y,innerW,drawH){
+const groups=uniqueRouteColindantes(route);
+if(!groups.length) return;
+const pts=lastCalc.coords;
+let signed=0;
+for(let i=0;i<pts.length;i++){
+const a=pts[i],b=pts[(i+1)%pts.length];
+signed += a.x*b.y-b.x*a.y;
+}
+groups.forEach(g=>{
+if(!g.name) return;
+const a=S(g.a), b=S(g.b);
+const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy)||1;
+const nx=signed>0 ? dy/len : -dy/len;
+const ny=signed>0 ? -dx/len : dx/len;
+const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+const offset=5.2;
+const saved=(desmemState.colLabelOffsets||{})[g.key] || (lastCalc?.colLabelOffsets||{})[g.key] || {dx:0,dy:0};
+const tx=mx+nx*offset+saved.dx, ty=my+ny*offset-saved.dy;
+const maxChars=34;
+let text=g.name;
+if(text.length>maxChars) text=text.slice(0,maxChars-1)+'…';
+let angleDeg=Math.atan2(dy,dx)*180/Math.PI;
+if(angleDeg>90 || angleDeg<-90) angleDeg += 180;
+const savedAngleDeg=Number((desmemState.colLabelAngles||{})[g.key]);
+if(Number.isFinite(savedAngleDeg)) angleDeg += savedAngleDeg;
+doc.setFont('times','normal'); doc.setFontSize(7.2); doc.setTextColor(31,46,61);
+doc.text(text,tx,ty,{align:'center',angle:angleDeg});
+});
+}
+
+function drawPdfWindRose(doc,x,y,size=9){
+// Misma rosa de los vientos que el plano original (círculo + marcas
+// cardinales + aguja de dos triángulos), para que los 3 planos luzcan igual.
+// Siempre fija: marca el norte real aunque el plano esté girado.
+const cx=x, cy=y, R=size;
+doc.setDrawColor(31,46,61); doc.setTextColor(31,46,61);
+doc.setLineWidth(Math.max(0.16,R*0.05));
+doc.circle(cx,cy,R,'S');
+
+const tickIn=R*0.82, tickOut=R*1.18;
+doc.line(cx,cy-tickOut,cx,cy-tickIn);
+doc.line(cx,cy+tickIn,cx,cy+tickOut);
+doc.line(cx-tickOut,cy,cx-tickIn,cy);
+doc.line(cx+tickIn,cy,cx+tickOut,cy);
+
+doc.setFont('times','bold'); doc.setFontSize(Math.max(6,R*0.78));
+doc.text('N',cx,cy-R*1.62,{align:'center'});
+doc.text('S',cx,cy+R*1.62+1.4,{align:'center'});
+doc.text('E',cx+R*1.62,cy+1.4,{align:'center'});
+doc.text('O',cx-R*1.62,cy+1.4,{align:'center'});
+
+const tipY=cy-R, baseY=cy+R*0.34, wingX=R*0.32;
+doc.setLineWidth(Math.max(0.14,R*0.045)); doc.setDrawColor(31,46,61);
+doc.setFillColor(31,46,61);
+doc.triangle(cx,tipY, cx-wingX,baseY, cx,cy, 'FD');
+doc.setFillColor(255,253,248);
+doc.triangle(cx,tipY, cx+wingX,baseY, cx,cy, 'FD');
+}
+
+function drawPdfAreaLabel(doc,poly,S,label){
+if(!poly || poly.length<3 || !label) return;
+const pts=poly.map(S);
+const cx=pts.reduce((a,p)=>a+p.x,0)/pts.length;
+const cy=pts.reduce((a,p)=>a+p.y,0)/pts.length;
+doc.setFont('times','bold'); doc.setFontSize(9); doc.setTextColor(31,46,61);
+doc.text(label,cx,cy,{align:'center'});
+}
+
+function drawPdfRegion(doc,region,m,y,innerW,drawH,fillColor,label=''){
+if(!region || region.length<3) throw new Error('La porción seleccionada no forma un polígono válido.');
+const all=region.concat([desmemState.start.point,desmemState.end.point]);
+if(desmemState.third) all.push(desmemState.third.point);
+const S=getPdfTransform(all,m,y,innerW,drawH);
+const poly=region.map(S), A=S(desmemState.start.point), B=S(desmemState.end.point), C=desmemState.third ? S(desmemState.third.point) : null;
+doc.setDrawColor(...fillColor); doc.setFillColor(...fillColor); doc.setLineWidth(0.45);
+drawPdfPolygon(doc,poly,'FD');
+doc.setDrawColor(60,107,74); doc.setLineWidth(0.9); drawPdfPolyline(doc,poly);
+doc.setDrawColor(31,46,61); doc.setLineWidth(0.55);
+if(C){ doc.line(A.x,A.y,C.x,C.y); doc.line(C.x,C.y,B.x,B.y); }
+else { doc.line(A.x,A.y,B.x,B.y); }
+// Sin marcador circular en A/B/C: solo la línea de corte y la etiqueta de texto.
+doc.setFontSize(8); doc.setTextColor(31,46,61); doc.text('A',A.x+2,A.y-2); doc.text('B',B.x+2,B.y-2); if(C) doc.text('C',C.x+2,C.y-2);
+// Etiquetas de los vértices guardadas por el usuario.
+ensureVertexLabels();
+region.forEach(p=>{
+const vi=findOriginalVertexIndex(p);
+if(vi>=0){
+const q=S(p);
+doc.setFont('times','bold'); doc.setFontSize(7.5); doc.setTextColor(31,46,61);
+doc.text(getVertexLabel(vi),q.x+2.2,q.y-2.2);
+}
+});
+drawPdfAreaLabel(doc,poly,S,label);
+drawPdfColindantes(doc,region,S,m,y,innerW,drawH);
+drawPdfWindRose(doc,m+innerW-18,y+20,8);
+doc.setFont('times','normal'); doc.setFontSize(7.5); doc.setTextColor(31,46,61);
+doc.text(`ESCALA 1:${S.scale}`,m+4,y+7);
+}
+
+function addPdfInfoPanel(doc,rows,x,y,w,h){
+// Panel compacto para mantener TODO el plano en una sola hoja.
+// Las colindancias siempre se muestran en dos columnas; nunca se crea
+// una segunda página ni se eliminan elementos por falta de espacio.
+const bottom=y+h-3;
+const drawFrame=(px,py,pw,ph)=>{
+doc.setDrawColor(138,124,95); doc.setLineWidth(0.3); doc.rect(px,py,pw,ph);
+doc.setFont('times','bold'); doc.setFontSize(8.2); doc.setTextColor(31,46,61);
+doc.text('INFORMACIÓN DEL PLANO',px+3.5,py+6);
+doc.setLineWidth(0.15); doc.line(px,py+8.5,px+pw,py+8.5);
+};
+
+const marker=rows.findIndex(r=>String(r[0]||'')==='*COLINDANTES*');
+const normalRows=marker>=0 ? rows.slice(0,marker) : rows.slice();
+const colRows=marker>=0 ? rows.slice(marker+1).filter(r=>String(r[1]||'').trim()) : [];
+drawFrame(x,y,w,h);
+
+let yy=y+13;
+const compactLabelW=Math.min(35,w*0.25);
+normalRows.forEach(row=>{
+const label=String(row[0]||'');
+const value=String(row[1]||'');
+const shownValue=value || '—';
+doc.setFont('times','bold'); doc.setFontSize(6.5); doc.setTextColor(74,90,106);
+doc.text(label,x+3.5,yy);
+doc.setFont('times','normal'); doc.setFontSize(6.7); doc.setTextColor(30,40,50);
+const wrapped=doc.splitTextToSize(shownValue,w-compactLabelW-7);
+wrapped.forEach((line,k)=>{
+if(yy+k*3.25<=bottom) doc.text(line,x+3.5+compactLabelW,yy+k*3.25);
+});
+yy += Math.max(4.0,wrapped.length*3.25+0.8);
+});
+
+if(!colRows.length) return {pagesAdded:0,lastY:yy};
+
+// Si queda poco espacio, reducimos el interlineado antes de pintar
+// colindancias, pero permanecemos en la misma hoja.
+yy=Math.min(yy+3,bottom-7);
+doc.setFont('times','bold'); doc.setFontSize(7.2); doc.setTextColor(31,46,61);
+doc.text('COLINDANCIAS',x+3.5,yy);
+doc.setLineWidth(0.15); doc.line(x+3.5,yy+1.2,x+28,yy+1.2);
+yy+=4;
+
+const colGap=6;
+const colW=(w-7-colGap)/2;
+const colX=[x+3.5,x+3.5+colW+colGap];
+const lineH=3.15;
+let colY=[yy,yy];
+
+colRows.forEach(row=>{
+const label=String(row[0]||'');
+const value=String(row[1]||'').trim() || '—';
+const text=`${label}: ${value}`;
+doc.setFont('times','normal'); doc.setFontSize(6.15); doc.setTextColor(30,40,50);
+const wrapped=doc.splitTextToSize(text,colW-1.5);
+const needed=wrapped.length*lineH+0.6;
+let col=colY[0]<=colY[1]?0:1;
+// Preferimos la columna con menor altura. Si la siguiente línea excede
+// unos milímetros, comprimimos un poco el interlineado de esa entrada.
+let actualLineH=lineH;
+if(colY[col]+needed>bottom){
+const other=1-col;
+if(colY[other]+needed<=bottom) col=other;
+else actualLineH=Math.max(2.45,(bottom-colY[col]-0.4)/Math.max(1,wrapped.length));
+}
+let drawY=colY[col];
+wrapped.forEach(line=>{ doc.text(line,colX[col],drawY); drawY+=actualLineH; });
+colY[col]=Math.min(drawY+0.45,bottom);
+});
+
+return {pagesAdded:0,lastY:Math.max(colY[0],colY[1])};
+}
+
+function pdfPointLabel(route,index,hasThird){
+return polygonPointLabel(route[index],hasThird);
+}
+
+function getPdfDistanceRows(route,hasThird){
+ensureVertexLabels();
+route=cleanPolygonRoute(route);
+if(route.length<2 || !lastCalc?.coords) return [];
+const rows=[];
+const n=route.length;
+for(let i=0;i<n;i++){
+const a=route[i], b=route[(i+1)%n];
+const dist=Math.hypot(b.x-a.x,b.y-a.y);
+if(dist<1e-9) continue;
+const edge=getBoundaryEdgeIndex(a,b);
+const orient=edge>=0 && lastCalc.legs?.[edge] ? (lastCalc.legs[edge].rumbo || 'Línea de corte') : 'Línea de corte';
+rows.push({est:pdfPointLabel(route,i,hasThird),po:pdfPointLabel(route,(i+1)%n,hasThird),orient,dist});
+}
+return rows;
+}
+
+function addPdfDistanceScalePanel(doc,route,hasThird,scale,areaM2,perimeter,m,y,innerW){
+route=cleanPolygonRoute(route);
+const rows=getPdfDistanceRows(route,hasThird);
+const rowH=4.35, headH=5.4;
+const tableW=innerW*0.62;
+const tableH=headH+rows.length*rowH;
+const panelH=Math.max(tableH,36);
+doc.setDrawColor(30,40,50); doc.setLineWidth(0.35);
+doc.rect(m,y,tableW,panelH);
+const colW=[16,16,39,20];
+let cx=m;
+['ESTACIÓN','P.O.','ORIENTACIÓN','DIST(m)'].forEach((h,i)=>{
+doc.rect(cx,y,colW[i],headH);
+doc.setFont('times','normal'); doc.setFontSize(6.8); doc.setTextColor(30,40,50);
+doc.text(h,cx+colW[i]/2,y+4,{align:'center'});
+cx+=colW[i];
+});
+rows.forEach((r,i)=>{
+const ry=y+headH+i*rowH;
+let x=m;
+const cells=[r.est,r.po,r.orient,r.dist.toFixed(2)];
+cells.forEach((c,j)=>{
+doc.rect(x,ry,colW[j],rowH);
+doc.setFont('times','normal'); doc.setFontSize(7.2); doc.setTextColor(30,40,50);
+const txt=String(c);
+if(j===2 && txt.length>20) doc.setFontSize(6.5);
+doc.text(txt,x+colW[j]/2,ry+3.4,{align:'center'});
+x+=colW[j];
+});
+});
+
+const sumX=m+tableW+10;
+doc.setFont('times','normal'); doc.setFontSize(8.5); doc.setTextColor(30,40,50);
+doc.text('ÁREA:',sumX,y+7);
+doc.setFont('times','bold'); doc.setFontSize(9);
+doc.text(`${areaM2.toFixed(4)} m²`,sumX,y+13);
+doc.text(`${(areaM2/(VARA_M*VARA_M)).toFixed(4)} varas²`,sumX,y+19);
+doc.text(`${(areaM2/CUERDA_M2).toFixed(4)} cuerdas`,sumX,y+25);
+doc.setFont('times','normal'); doc.setFontSize(8.5);
+doc.text(`Perímetro: ${perimeter.toFixed(3)} m`,sumX,y+33);
+doc.setFont('times','bold'); doc.text(`Escala: 1:${scale}`,sumX,y+40);
+return panelH;
+}
+
+function safePdfName(name,fallback){
+const clean=String(name||fallback).trim().replace(/[\\/:*?"<>|]+/g,'_');
+return clean || fallback;
+}
+
+function generarPDFDesmembracion(){
+try{
+const a=desmemState.applied;
+if(!a || !lastCalc){alert('Primero aplicá una selección de desmembración.');return;}
+if(!window.jspdf?.jsPDF){alert('No se pudo cargar el generador PDF. Verificá tu conexión a internet y recargá la página.');return;}
+a.route=cleanPolygonRoute(a.route);
+const {jsPDF}=window.jspdf, pageW=PAGE_W_MM,pageH=PAGE_H_MM,m=PAGE_MARGIN_MM,innerW=pageW-2*m;
+const doc=new jsPDF({unit:'mm',format:[pageW,pageH],orientation:'portrait'});
+const val=id=>pdfField(id,({d_de:'m_de',d_ubicacion:'m_ubicacion',d_otorgante:'m_otorgante',d_adquirente:'m_adquirente',d_fecha:'m_fecha',d_nos:'m_nos'}[id]||''));
+setupPdfHeader(doc,(val('d_tipo')||'PLANO DE DESMEMBRACION').toUpperCase(),val,m,innerW,pageH);
+let y=m+18; const drawH=DRAW_H_MM; doc.rect(m,y,innerW,drawH);
+drawPdfRegion(doc,a.route,m,y,innerW,drawH,[230,242,233],'ÁREA DESMEMBRADA');
+y += drawH + 7;
+const vr=a.areaM2/(VARA_M*VARA_M),cu=a.areaM2/CUERDA_M2;
+const routeCols=uniqueRouteColindantes(a.route);
+const cutCols=makeCutColindantItems(a,'desmem');
+const cutInfo=a.hasThird ? `A-C ${a.cutAC.toFixed(3)} m | C-B ${a.cutCB.toFixed(3)} m` : `A-B ${a.cutAB.toFixed(3)} m`;
+const scale=(()=>{ const all=a.route.concat([desmemState.start.point,desmemState.end.point]); if(desmemState.third) all.push(desmemState.third.point); return getPdfTransform(all,m,m+18,innerW,drawH).scale; })();
+const distH=addPdfDistanceScalePanel(doc,a.route,a.hasThird,scale,a.areaM2,a.perimeter,m,y,innerW);
+y += distH + 7;
+const rows=[
+['No.',val('d_no')],['De',val('d_de')],['Ubicación',val('d_ubicacion')],
+['Otorgante / propietario',val('d_otorgante')],['Adquirente',val('d_adquirente')],['Fecha',val('d_fecha')],
+['Nos. (plano / archivo)',val('d_nos')],['Área desmembrada',`${a.areaM2.toFixed(4)} m² | ${vr.toFixed(4)} varas² | ${cu.toFixed(4)} cuerdas`],
+['Línea de corte',`${cutInfo} | Perímetro ${a.perimeter.toFixed(3)} m`],['Área restante',`${a.remainingM2.toFixed(4)} m²`]
+];
+rows.push(['*COLINDANTES*','']);
+directionalColindantes(routeCols,lastCalc.coords,cutCols).forEach(([d,names])=>rows.push([`Al ${d.toLowerCase()}`,names.join(' / ')]));
+addPdfInfoPanel(doc,rows,m,y,innerW,pageH-m-y-5);
+doc.setFont('times','normal'); doc.setFontSize(7); doc.setTextColor(90,90,90);
+doc.text('Plano generado a partir de la selección realizada en la calculadora.',m+4,pageH-m-2.5);
+doc.save(safePdfName(val('d_no'),'plano_desmembracion')+'_desmembracion.pdf');
+}catch(err){
+console.error(err);
+alert('No se pudo generar el PDF de desmembración. Detalle: '+(err?.message||err));
+}
+}
+
+function generarPDFAreaRestante(){
+try{
+const a=desmemState.applied;
+let region=getRemainingRoute();
+if(!a || !region || !lastCalc){alert('Primero aplicá una selección de desmembración.');return;}
+region=cleanPolygonRoute(region);
+if(region.length<3){alert('El área restante no forma un polígono válido.');return;}
+if(!window.jspdf?.jsPDF){alert('No se pudo cargar el generador PDF. Verificá tu conexión a internet y recargá la página.');return;}
+const {jsPDF}=window.jspdf, pageW=PAGE_W_MM,pageH=PAGE_H_MM,m=PAGE_MARGIN_MM,innerW=pageW-2*m;
+const doc=new jsPDF({unit:'mm',format:[pageW,pageH],orientation:'portrait'});
+const val=id=>pdfField(id,({d_de:'m_de',d_ubicacion:'m_ubicacion',d_otorgante:'m_otorgante',d_adquirente:'m_adquirente',d_fecha:'m_fecha',d_nos:'m_nos'}[id]||''));
+setupPdfHeader(doc,'PLANO DEL AREA RESTANTE',val,m,innerW,pageH);
+let y=m+18; const drawH=DRAW_H_MM; doc.rect(m,y,innerW,drawH);
+drawPdfRegion(doc,region,m,y,innerW,drawH,[238,238,238],'FINCA MATRIZ');
+y += drawH + 7;
+const rem=a.remainingM2, vr=rem/(VARA_M*VARA_M),cu=rem/CUERDA_M2;
+const routeCols=uniqueRouteColindantes(region);
+const cutCols=makeCutColindantItems(a,'restante');
+const cutInfo=a.hasThird ? `A-C ${a.cutAC.toFixed(3)} m | C-B ${a.cutCB.toFixed(3)} m` : `A-B ${a.cutAB.toFixed(3)} m`;
+const scale=(()=>{ const all=region.concat([desmemState.start.point,desmemState.end.point]); if(desmemState.third) all.push(desmemState.third.point); return getPdfTransform(all,m,m+18,innerW,drawH).scale; })();
+const remainingPerimeter=region.reduce((sum,p,i)=>{ const q=region[(i+1)%region.length]; return sum+Math.hypot(q.x-p.x,q.y-p.y); },0);
+const distH=addPdfDistanceScalePanel(doc,region,a.hasThird,scale,rem,remainingPerimeter,m,y,innerW);
+y += distH + 7;
+const rows=[
+['No.',val('d_no')],['De',val('d_de')],['Ubicación',val('d_ubicacion')],
+['Propietario',val('d_otorgante')],['Fecha',val('d_fecha')],['Nos. (plano / archivo)',val('d_nos')],
+['Área restante',`${rem.toFixed(4)} m² | ${vr.toFixed(4)} varas² | ${cu.toFixed(4)} cuerdas`],
+['Línea de separación',cutInfo],['Área desmembrada',`${a.areaM2.toFixed(4)} m²`]
+];
+rows.push(['*COLINDANTES*','']);
+directionalColindantes(routeCols,lastCalc.coords,cutCols).forEach(([d,names])=>rows.push([`Al ${d.toLowerCase()}`,names.join(' / ')]));
+addPdfInfoPanel(doc,rows,m,y,innerW,pageH-m-y-5);
+doc.setFont('times','normal'); doc.setFontSize(7); doc.setTextColor(90,90,90);
+doc.text('Plano del área restante generado por separado.',m+4,pageH-m-2.5);
+doc.save(safePdfName(val('d_no'),'plano_area_restante')+'_area_restante.pdf');
+}catch(err){
+console.error(err);
+alert('No se pudo generar el PDF del área restante. Detalle: '+(err?.message||err));
+}
+}
+
+function initDesmem(){
+const decision=document.getElementById('desmemDecision');
+const work=document.getElementById('desmemWork');
+const canvas=document.getElementById('desmemCanvas');
+const reset=document.getElementById('desmemReset');
+const apply=document.getElementById('desmemApply');
+const pathA=document.getElementById('desmemPathA');
+const pathB=document.getElementById('desmemPathB');
+const mode=document.getElementById('desmemMode');
+const manualArea=document.getElementById('desmemManualArea');
+
+decision.addEventListener('change',()=>{
+const yes=decision.value==='si';
+work.classList.toggle('show',yes);
+if(yes){
+resetDesmemSelection();
+if(lastCalc) updateDesmemUI();
+}else{
+resetDesmemSelection();
+}
+});
+
+canvas.addEventListener('pointerdown',(ev)=>{
+if(!lastCalc) {
+alert('Primero calculá el polígono en la sección 02.');
+return;
+}
+const rect=canvas.getBoundingClientRect();
+const sx=(ev.clientX-rect.left)*(canvas.width/rect.width);
+const sy=(ev.clientY-rect.top)*(canvas.height/rect.height);
+const geom=getDesmemCanvasGeometry();
+if(!geom) return;
+const world=geom.toWorld({x:sx,y:sy});
+
+if(desmemState.interactiveMode==='vertex'){
+const hit=nearestCanvasVertex(world,geom);
+if(hit){ desmemState.activeVertex=hit.index; desmemState.activeEdge=null; updateInteractivePanel(); drawDesmemPlot(); }
+return;
+}
+if(desmemState.interactiveMode==='col'){
+const hit=nearestInteractiveRouteSegment(world,geom);
+if(hit){
+desmemState.activeRouteSegment=hit;
+desmemState.activeEdge=hit.edge>=0 ? hit.edge : null;
+desmemState.activeVertex=null;
+updateInteractivePanel();
+drawDesmemPlot();
+}else{
+document.getElementById('desmemStatus').textContent='Hacé clic sobre una línea de la porción desmembrada para editar su colindante.';
+}
+return;
+}
+
+// Primero detectamos si se está arrastrando alguno de los tres puntos.
+const hitA=desmemState.start && Math.hypot(world.x-desmemState.start.point.x,world.y-desmemState.start.point.y)<=18/geom.scalePx;
+const hitB=desmemState.end && Math.hypot(world.x-desmemState.end.point.x,world.y-desmemState.end.point.y)<=18/geom.scalePx;
+const hitC=desmemState.third && Math.hypot(world.x-desmemState.third.point.x,world.y-desmemState.third.point.y)<=18/geom.scalePx;
+if(hitA){ desmemState.dragging='start'; return; }
+if(hitB){ desmemState.dragging='end'; return; }
+if(hitC){ desmemState.dragging='third'; return; }
+
+if(!desmemState.start){
+const hit=locateBoundaryPoint(world);
+if(!hit){ document.getElementById('desmemStatus').textContent='Hacé clic sobre la línea del polígono para marcar A.'; return; }
+desmemState.start=hit; desmemState.pathChoice=null;
+}else if(!desmemState.end){
+const hit=locateBoundaryPoint(world);
+if(!hit){ document.getElementById('desmemStatus').textContent='Hacé clic sobre la línea del polígono para marcar B.'; return; }
+desmemState.end=hit; desmemState.pathChoice=null;
+}else if(!desmemState.third){
+const hit=locateInteriorPoint(world);
+if(!hit){ document.getElementById('desmemStatus').textContent='C debe quedar dentro del polígono.'; return; }
+desmemState.third=hit; desmemState.pathChoice=null;
+}else{
+document.getElementById('desmemStatus').textContent='Ya están definidos A, B y C. Arrastrá cualquiera de ellos o usá “Nueva selección”.';
+}
+desmemState.applied=null;
+document.getElementById('desmemForm').classList.remove('show');
+updateDesmemUI();
+});
+
+pathA.addEventListener('click',()=>{
+desmemState.pathChoice='A';
+updateDesmemUI();
+});
+pathB.addEventListener('click',()=>{
+desmemState.pathChoice='B';
+updateDesmemUI();
+});
+
+mode.addEventListener('change',()=>{
+desmemState.pathChoice=null;
+updateDesmemUI();
+});
+manualArea.addEventListener('input',()=>updateDesmemUI());
+
+document.getElementById('desmemModeRoute')?.addEventListener('click',()=>setInteractiveMode('route'));
+document.getElementById('desmemModeVertex')?.addEventListener('click',()=>setInteractiveMode('vertex'));
+document.getElementById('desmemModeCol')?.addEventListener('click',()=>setInteractiveMode('col'));
+document.getElementById('desmemInteractivePanel')?.addEventListener('click',ev=>{
+if(ev.target.matches('[data-set-point]')) return;
+});
+updateInteractivePanel();
+
+canvas.addEventListener('pointermove',(ev)=>{
+if(!desmemState.dragging || !lastCalc) return;
+const rect=canvas.getBoundingClientRect();
+const sx=(ev.clientX-rect.left)*(canvas.width/rect.width);
+const sy=(ev.clientY-rect.top)*(canvas.height/rect.height);
+const geom=getDesmemCanvasGeometry(); if(!geom) return;
+const world=geom.toWorld({x:sx,y:sy});
+if(desmemState.dragging==='third') {
+const hit=locateInteriorPoint(world);
+if(!hit) return;
+desmemState.third=hit;
+}else{
+const hit=locateBoundaryPoint(world);
+if(!hit) return;
+if(desmemState.dragging==='start') desmemState.start=hit; else if(desmemState.dragging==='end') desmemState.end=hit;
+}
+desmemState.pathChoice=null; desmemState.applied=null;
+document.getElementById('desmemForm').classList.remove('show');
+updateDesmemUI();
+});
+
+canvas.addEventListener('pointerup',()=>{desmemState.dragging=null;});
+canvas.addEventListener('pointercancel',()=>{desmemState.dragging=null;});
+
+reset.addEventListener('click',resetDesmemSelection);
+
+apply.addEventListener('click',()=>{
+if(!desmemState.start || !desmemState.end){
+alert('Marcá los puntos A y B sobre el perímetro antes de aplicar la selección. El punto C es opcional.'); return;
+}
+const modeValue=document.getElementById('desmemMode').value;
+let route, area;
+const pair=getCutRoutePair();
+if(modeValue==='area'){
+area=parseFloat(document.getElementById('desmemManualArea').value||'');
+if(!Number.isFinite(area) || area<=0 || area>=lastCalc.areaM2){
+alert(`Ingresá un área mayor que 0 y menor que ${lastCalc.areaM2.toFixed(4)} m².`); return;
+}
+const solved=solveManualAreaSelection(area);
+if(!solved){
+alert('No se pudo encontrar una posición de B que produzca el área solicitada. Mové A o C y probá nuevamente.'); return;
+}
+desmemState.end=solved.B;
+desmemState.pathChoice=solved.direction;
+route=solved.route;
+area=solved.area;
+}else{
+if(!desmemState.pathChoice){ alert('Elegí el recorrido que corresponde a la porción que querés desmembrar.'); return; }
+route=pair[desmemState.pathChoice];
+area=polygonArea(route);
+}
+if(area<=0 || area>=lastCalc.areaM2){ alert('La porción seleccionada no forma un área válida.'); return; }
+const hasThird=!!desmemState.third;
+const cutAC=hasThird ? Math.hypot(desmemState.third.point.x-desmemState.start.point.x,desmemState.third.point.y-desmemState.start.point.y) : 0;
+const cutCB=hasThird ? Math.hypot(desmemState.end.point.x-desmemState.third.point.x,desmemState.end.point.y-desmemState.third.point.y) : 0;
+const cutAB=Math.hypot(desmemState.end.point.x-desmemState.start.point.x,desmemState.end.point.y-desmemState.start.point.y);
+const cutLen=hasThird ? cutAC+cutCB : cutAB;
+const boundaryLen=route.reduce((sum,p,i)=>i===0?0:sum+Math.hypot(p.x-route[i-1].x,p.y-route[i-1].y),0)-cutLen;
+const perimeter=boundaryLen+cutLen, remaining=Math.max(0,lastCalc.areaM2-area);
+desmemState.colOverrides={};
+desmemState.activeRouteSegment=null;
+desmemState.applied={route:route.map(p=>({...p})), areaM2:area, cutLen, cutAC, cutCB, cutAB, boundaryLen, perimeter, remainingM2:remaining, manualArea:modeValue==='area', routeDirection:desmemState.pathChoice, hasThird, vertexLabels:{...desmemState.vertexLabels}, colOverrides:{...desmemState.colOverrides}, colLabelAngles:{...desmemState.colLabelAngles}, colLabelOffsets:{...desmemState.colLabelOffsets}};
+const status=document.getElementById('desmemStatus');
+status.textContent='Selección aplicada. Ya podés completar los datos del plano y generar cualquiera de los dos planos por separado.';
+fillDesmemForm(); drawDesmemPlot();
+});
+
+window.addEventListener('resize',()=>{
+if(document.getElementById('desmemWork').classList.contains('show')) drawDesmemPlot();
+});
+
+updateDesmemUI();
+}
+
+function refreshDesmemAfterCalculation(){
+if(document.getElementById('desmemDecision')?.value==='si'){
+resetDesmemSelection();
+updateDesmemUI();
+}
+}
+
+function generarPDF(){
+try{
+const calc = lastCalc || calcular();
+if(!calc) return;
+if(!window.jspdf?.jsPDF){alert('No se pudo cargar el generador PDF. Verificá tu conexión a internet y recargá la página.');return;}
+const { jsPDF } = window.jspdf;
+const pageW = PAGE_W_MM, pageH = PAGE_H_MM;
+const doc = new jsPDF({unit:'mm', format:[pageW, pageH], orientation:'portrait'});
+const m = PAGE_MARGIN_MM;
+const innerW = pageW - 2*m;
+
+const val = id => document.getElementById(id).value || '';
+const tituloDoc = (val('m_titulo_doc') || 'PLANO DE MEDIDAS').toUpperCase();
+
+function splitTitulo(t){
+if(t.length <= 20) return [t];
+const mid = Math.floor(t.length/2);
+let bestIdx = -1, bestDist = Infinity;
+for(let i=0;i<t.length;i++){
+if(t[i]===' '){
+const d = Math.abs(i-mid);
+if(d < bestDist){ bestDist = d; bestIdx = i; }
+}
+}
+if(bestIdx === -1) return [t];
+return [t.slice(0,bestIdx), t.slice(bestIdx+1)];
+}
+const tituloLines = splitTitulo(tituloDoc);
+
+doc.setDrawColor(30,40,50);
+doc.setLineWidth(0.5);
+doc.rect(m, m, innerW, pageH-2*m);
+
+let y = m;
+doc.setLineWidth(0.3);
+doc.line(m, y+18, m+innerW, y+18);
+doc.line(m+innerW*0.55, y, m+innerW*0.55, y+18);
+doc.setFont('times','normal');
+doc.setFontSize(11);
+if(tituloLines.length === 1){
+doc.text(tituloLines[0], m+4, y+11);
+} else {
+doc.text(tituloLines[0], m+4, y+8);
+doc.text(tituloLines[1], m+4, y+13.5);
+}
+doc.setFontSize(9);
+doc.text(`No. ${val('m_no')}`, m+innerW*0.55+4, y+8);
+doc.text(`De ${val('m_de')}`, m+innerW*0.55+4, y+15);
+
+y += 18;
+
+const drawH = DRAW_H_MM;
+doc.rect(m, y, innerW, drawH);
+
+const boxW = innerW - 10, boxH = drawH - 10;
+const tmpCanvas = document.createElement('canvas');
+tmpCanvas.width = 1400;
+tmpCanvas.height = Math.round(1400 * (boxH/boxW));
+// El plano se exporta con el mismo giro configurado en pantalla;
+// la brújula del PDF sigue marcando el norte real.
+drawPlot(calc.coords, {legs: calc.legs, scale: calc.scale, rotation: calc.plotRotation || 0}, tmpCanvas);
+const imgData = tmpCanvas.toDataURL('image/png');
+const imgRatio = tmpCanvas.width / tmpCanvas.height;
+let imgW = boxW, imgH = boxW / imgRatio;
+if(imgH > boxH){ imgH = boxH; imgW = boxH * imgRatio; }
+const imgX = m + 5 + (boxW - imgW)/2;
+const imgY = y + 5 + (boxH - imgH)/2;
+doc.addImage(imgData, 'PNG', imgX, imgY, imgW, imgH, undefined, 'FAST');
+// El plano original conserva su rosa de los vientos propia; no se agrega
+// ninguna etiqueta adicional en el centro de la figura.
+
+y += drawH;
+
+const tableTop = y;
+const rowH = 6;
+const colW = [14, 14, 36, 18];
+const tableX = m;
+doc.setFontSize(8);
+doc.rect(tableX, tableTop, colW[0]+colW[1]+colW[2]+colW[3], rowH*(calc.legs.length+1));
+let cx = tableX;
+['ESTACIÓN','P.O.','AZIMUT / ORIENT.','DIST(m)'].forEach((h,i)=>{
+doc.rect(cx, tableTop, colW[i], rowH);
+doc.text(h, cx+colW[i]/2, tableTop+rowH/2+1.2, {align:'center'});
+cx += colW[i];
+});
+calc.legs.forEach((leg,i)=>{
+const ry = tableTop + rowH*(i+1);
+let cx2 = tableX;
+const cells = [`${i}`, `${i+1<calc.legs.length?i+1:0}`, leg.rumbo, leg.distM.toFixed(2)];
+cells.forEach((c,ci)=>{
+doc.rect(cx2, ry, colW[ci], rowH);
+doc.text(String(c), cx2+colW[ci]/2, ry+rowH/2+1.2, {align:'center'});
+cx2 += colW[ci];
+});
+});
+
+const sumX = tableX + colW[0]+colW[1]+colW[2]+colW[3] + 8;
+doc.setFontSize(9);
+doc.text('ÁREA:', sumX, tableTop+6);
+doc.setFont('times','bold');
+doc.text(`${calc.areaM2.toFixed(4)} m²`, sumX, tableTop+12);
+doc.text(`${calc.areaVr.toFixed(4)} varas²`, sumX, tableTop+18);
+doc.text(`${calc.areaCu.toFixed(4)} cuerdas`, sumX, tableTop+24);
+doc.setFont('times','normal');
+doc.text(`Perímetro: ${calc.perim.toFixed(3)} m`, sumX, tableTop+32);
+doc.text(`Escala: 1:${calc.scale}`, sumX, tableTop+38);
+
+y = tableTop + rowH*(calc.legs.length+1) + 8;
+
+const footTop = y;
+const footH = pageH - m - footTop - 4;
+doc.rect(m, footTop, innerW, footH);
+doc.setFontSize(10);
+doc.setFont('times','bold');
+doc.text(`PLANO: ${val('m_tipo')}`, m+4, footTop+7);
+doc.setLineWidth(0.2);
+doc.line(m, footTop+10, m+innerW, footTop+10);
+doc.setFont('times','normal');
+doc.setFontSize(8.5);
+doc.setTextColor(30,40,50);
+
+const originalColText = directionalColindantes(
+calc.legs.map((leg,i)=>({
+a:calc.coords[i],
+b:calc.coords[(i+1)%calc.coords.length],
+name:(leg.colindante||'').trim() || 'Finca Matriz'
+})),
+calc.coords
+).map(([d,n])=>`Al ${d.toLowerCase()}: ${n}`).join(' | ') || 'No especificados';
+
+const footerLines = [
+`No. ${val('m_no')}     De ${val('m_de')}`,
+`Ubicación: ${val('m_ubicacion')}`,
+`Otorgante: ${val('m_otorgante')}`,
+`Adquirente: ${val('m_adquirente')}`,
+`Área: ${calc.areaM2.toFixed(4)} m²  =  ${calc.areaVr.toFixed(4)} varas²  =  ${calc.areaCu.toFixed(4)} cuerdas`,
+`Escala: 1:${calc.scale}     Fecha: ${val('m_fecha')}     Nos.: ${val('m_nos')}`
+];
+const originalDirectional = directionalColindantes(
+calc.legs.map((leg,i)=>({a:calc.coords[i],b:calc.coords[(i+1)%calc.coords.length],name:(leg.colindante||'').trim() || 'Finca Matriz'})),
+calc.coords
+);
+footerLines.push('COLINDANTES');
+originalDirectional.forEach(([d,names])=>footerLines.push(`Al ${d.toLowerCase()}: ${names.join(' / ')}`));
+let ly = footTop + 16;
+const footBottom = footTop + footH - 4;
+footerLines.forEach(line=>{
+const wrapped = doc.splitTextToSize(line, innerW - 8);
+wrapped.forEach(t=>{
+if(ly <= footBottom){ doc.text(t, m+4, ly); ly += 4.6; }
+});
+ly += 2;
+});
+
+const fname = `plano_${(val('m_no')||'registral')}.pdf`;
+doc.save(fname);
+}catch(err){
+console.error(err);
+alert('No se pudo generar el PDF. Detalle: '+(err?.message||err));
+}
+}
+
+function setupColindantLabelDragging(){
+const canvas=document.getElementById('plotCanvas');
+if(canvas && lastCalc) lastCalc.colLabelAngles=lastCalc.colLabelAngles||{};
+if(!canvas) return;
+let drag=null;
+const pos=ev=>{const r=canvas.getBoundingClientRect();return {x:(ev.clientX-r.left)*(canvas.width/r.width),y:(ev.clientY-r.top)*(canvas.height/r.height)};};
+canvas.addEventListener('pointerdown',ev=>{
+const p=pos(ev);
+const hits=canvas._colLabelHitboxes||[];
+for(let i=hits.length-1;i>=0;i--){
+const h=hits[i];
+if(Math.abs(p.x-h.lx)<=h.halfW && Math.abs(p.y-h.ly)<=h.halfH){
+drag={h,startX:p.x,startY:p.y};
+canvas.setPointerCapture?.(ev.pointerId);
+ev.preventDefault();
+return;
+}
+}
+});
+canvas.addEventListener('dblclick',ev=>{
+const p=pos(ev);
+const hits=canvas._colLabelHitboxes||[];
+for(let i=hits.length-1;i>=0;i--){
+const h=hits[i];
+if(Math.abs(p.x-h.lx)<=h.halfW && Math.abs(p.y-h.ly)<=h.halfH){
+const current=Number(((lastCalc && lastCalc.colLabelAngles) || {})[h.key] || 0);
+const raw=prompt(`Giro del colindante (grados)\nActual: ${current}°\nEjemplo: 90, -90, 180`, String(current));
+if(raw===null) return;
+const value=Number(raw);
+if(!Number.isFinite(value)){ alert('Ingresá un número válido para el giro.'); return; }
+lastCalc.colLabelAngles=lastCalc.colLabelAngles||{};
+lastCalc.colLabelAngles[h.key]=value;
+drawPlot(lastCalc.coords,{legs:lastCalc.legs,scale:lastCalc.scale,rotation:lastCalc.plotRotation||0});
+return;
+}
+}
+});
+
+canvas.addEventListener('contextmenu',ev=>{
+const p=pos(ev);
+const hits=canvas._colLabelHitboxes||[];
+for(let i=hits.length-1;i>=0;i--){
+const h=hits[i];
+if(Math.abs(p.x-h.lx)<=h.halfW && Math.abs(p.y-h.ly)<=h.halfH){
+ev.preventDefault();
+const current=Number(((lastCalc && lastCalc.colLabelAngles) || {})[h.key] || 0);
+const raw=prompt(`Giro del colindante (grados)\nActual: ${current}°\nEjemplo: 90, -90, 180`, String(current));
+if(raw===null) return;
+const value=Number(raw);
+if(!Number.isFinite(value)){ alert('Ingresá un número válido para el giro.'); return; }
+lastCalc.colLabelAngles=lastCalc.colLabelAngles||{};
+lastCalc.colLabelAngles[h.key]=value;
+drawPlot(lastCalc.coords,{legs:lastCalc.legs,scale:lastCalc.scale,rotation:lastCalc.plotRotation||0});
+return;
+}
+}
+});
+
+canvas.addEventListener('pointermove',ev=>{
+if(!drag) return;
+const p=pos(ev), h=drag.h;
+// Si el plano está girado, se des-gira el delta para que la etiqueta
+// siga el dedo/mouse aunque el dibujo esté rotado.
+const rot=((lastCalc && lastCalc.plotRotation)||0)*Math.PI/180;
+const wx=(p.x-h.baseLx)/h.drawScale;
+const wy=(h.baseLy-p.y)/h.drawScale;
+const c=Math.cos(-rot), s=Math.sin(-rot);
+const dxWorld=wx*c-wy*s;
+const dyWorld=wx*s+wy*c;
+lastCalc.colLabelOffsets=lastCalc.colLabelOffsets||{};
+lastCalc.colLabelOffsets[h.key]={dx:dxWorld,dy:dyWorld};
+drawPlot(lastCalc.coords,{legs:lastCalc.legs,scale:lastCalc.scale,rotation:lastCalc.plotRotation||0});
+});
+const end=ev=>{if(!drag)return; drag=null;};
+canvas.addEventListener('pointerup',end);
+canvas.addEventListener('pointercancel',end);
+}
+
+function setupDesmemColindantLabelDragging(){
+const canvas=document.getElementById('desmemCanvas');
+if(!canvas) return;
+let drag=null;
+const pos=ev=>{const r=canvas.getBoundingClientRect();return {x:(ev.clientX-r.left)*(canvas.width/r.width),y:(ev.clientY-r.top)*(canvas.height/r.height)};};
+canvas.addEventListener('pointerdown',ev=>{
+if(desmemState.interactiveMode!=='col') return;
+const p=pos(ev), hits=canvasForDesmemColLabels||[];
+for(let i=hits.length-1;i>=0;i--){
+const h=hits[i];
+if(Math.abs(p.x-h.lx)<=h.halfW && Math.abs(p.y-h.ly)<=h.halfH){
+drag={h};
+canvas.setPointerCapture?.(ev.pointerId);
+ev.preventDefault();
+return;
+}
+}
+});
+canvas.addEventListener('pointermove',ev=>{
+if(!drag) return;
+const p=pos(ev), h=drag.h;
+desmemState.colLabelOffsets[h.key]={dx:(p.x-h.baseLx)/h.drawScale,dy:(h.baseLy-p.y)/h.drawScale};
+if(desmemState.applied) desmemState.applied.colLabelOffsets={...desmemState.colLabelOffsets};
+drawDesmemPlot();
+});
+const end=()=>{if(!drag)return;drag=null;};
+canvas.addEventListener('pointerup',end);
+canvas.addEventListener('pointercancel',end);
+}
+
+document.getElementById('clock').textContent = new Date().toLocaleDateString('es-GT',{year:'numeric',month:'long',day:'numeric'});
+
+initDesmem();
+setupColindantLabelDragging();
+setupDesmemColindantLabelDragging();
+
+// Ejemplo de precarga inicial
+const SAMPLE = [
+{dir:'E', varas:23.9257},
+{dir:'N', varas:11.9628},
+{dir:'O', varas:9.5703},
+{dir:'N', varas:7.1777},
+{dir:'O', varas:14.3554},
+{dir:'S', varas:19.1406}
+];
+for(let i=0;i<SAMPLE.length;i++) addRow();
+(function seedExample(){
+const rows = document.querySelectorAll('#entryBody tr');
+rows.forEach((tr,i)=>{
+const d = SAMPLE[i];
+if(!d) return;
+tr.querySelector('.dir').value = d.dir;
+tr.querySelector('.varas').value = d.varas;
+});
+document.getElementById('m_tipo').value = 'DE DESMEMBRACION';
+document.getElementById('m_otorgante').value = 'MUNICIPALIDAD DE ...';
+document.getElementById('m_adquirente').value = 'ESTADO DE GUATEMALA, ADSCRITO A ...';
+
+// colindancias de ejemplo, un valor por cada lado (E-0→E-1, E-1→E-2, ...)
+const SAMPLE_COLINDANTES = [
+'CALLE',
+'POLICÍA NACIONAL CIVIL',
+'POLICÍA NACIONAL CIVIL',
+'POLICÍA NACIONAL CIVIL',
+'POLICÍA NACIONAL CIVIL',
+'POLICÍA NACIONAL CIVIL'
+];
+const colInputs = document.querySelectorAll('#colindantesGrid .colindante-in');
+colInputs.forEach((inp,i)=>{
+if(SAMPLE_COLINDANTES[i] !== undefined) inp.value = SAMPLE_COLINDANTES[i];
+});
+})();
+</script>
+<script>
+(function(){
+// Mejora: arrastre y giro de etiquetas de colindantes en la desmembración.
+function ensureColAngleState(){
+desmemState.colLabelAngles=desmemState.colLabelAngles||{};
+desmemState.colLabelOffsets=desmemState.colLabelOffsets||{};
+}
+const oldDraw=window.drawDesmemPlot;
+if(typeof oldDraw==='function'){
+window.drawDesmemPlot=function(){
+ensureColAngleState();
+oldDraw();
+};
+}
+// Reemplaza el dibujo de etiquetas por uno que incluya el giro guardado.
+const oldCanvasDraw=window.drawCanvasColindantes;
+if(typeof oldCanvasDraw==='function'){
+// No reemplazamos la función completa: el evento de giro se aplica visualmente
+// mediante CSS/canvas en el siguiente render a través de este ajuste de contexto.
+}
+// Agrega los controles de giro al panel de edición y a las tarjetas.
+const oldUpdate=window.updateInteractivePanel;
+if(typeof oldUpdate==='function'){
+window.updateInteractivePanel=function(){
+oldUpdate();
+if(desmemState.interactiveMode!=='col') return;
+const panel=document.getElementById('desmemInteractivePanel');
+const btn=document.getElementById('desmemSaveCol');
+const inp=document.getElementById('desmemInteractiveCol');
+const seg=desmemState.activeRouteSegment;
+if(!panel||!btn||!inp||!seg) return;
+ensureColAngleState();
+if(!document.getElementById('desmemInteractiveColAngle')){
+const lab=document.createElement('label');
+lab.style='display:block;margin-top:7px;font-size:11px';
+lab.innerHTML='Giro del texto <input id="desmemInteractiveColAngle" type="number" step="1" min="-360" max="360" style="width:80px"> °';
+panel.insertBefore(lab,btn.parentElement||btn);
+}
+document.getElementById('desmemInteractiveColAngle').value=Number(desmemState.colLabelAngles[seg.key]||0);
+};
+}
+// Interceptar guardado para conservar el giro.
+document.addEventListener('click',function(ev){
+if(ev.target?.id!=='desmemSaveCol') return;
+const seg=desmemState.activeRouteSegment; if(!seg) return;
+ensureColAngleState();
+const a=Number(document.getElementById('desmemInteractiveColAngle')?.value||0);
+desmemState.colLabelAngles[seg.key]=Number.isFinite(a)?a:0;
+if(desmemState.applied) desmemState.applied.colLabelAngles={...desmemState.colLabelAngles};
+},true);
+// Arrastre: se instala después de los listeners existentes y captura solo etiquetas.
+const canvas=document.getElementById('desmemCanvas');
+if(!canvas) return;
+let drag=null;
+const pos=ev=>{const r=canvas.getBoundingClientRect();return{x:(ev.clientX-r.left)*canvas.width/r.width,y:(ev.clientY-r.top)*canvas.height/r.height};};
+canvas.addEventListener('pointerdown',ev=>{
+if(desmemState.interactiveMode!=='col') return;
+const p=pos(ev), hits=canvasForDesmemColLabels||[];
+for(let i=hits.length-1;i>=0;i--){
+const h=hits[i];
+if(Math.abs(p.x-h.lx)<=h.halfW && Math.abs(p.y-h.ly)<=h.halfH){
+drag=h; canvas.setPointerCapture?.(ev.pointerId); ev.preventDefault(); return;
+}
+}
+},true);
+canvas.addEventListener('pointermove',ev=>{
+if(!drag) return;
+ensureColAngleState(); const p=pos(ev),h=drag;
+desmemState.colLabelOffsets[h.key]={dx:(p.x-h.baseLx)/h.drawScale,dy:(h.baseLy-p.y)/h.drawScale};
+if(desmemState.applied) desmemState.applied.colLabelOffsets={...desmemState.colLabelOffsets};
+drawDesmemPlot(); ev.preventDefault();
+},true);
+canvas.addEventListener('pointerup',()=>{drag=null},true);
+canvas.addEventListener('pointercancel',()=>{drag=null},true);
+})();
+</script>
+</body>
+</html>
