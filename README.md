@@ -1,2 +1,3 @@
-# CalculadoraLinderos
-Calculadora de Linderos
+# Calculadora de Linderos
+
+Proyecto de calculadora de linderos.
